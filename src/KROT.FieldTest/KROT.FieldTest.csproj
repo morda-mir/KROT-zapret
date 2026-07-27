@@ -1,0 +1,14 @@
+<Project Sdk="Microsoft.NET.Sdk.WindowsDesktop">
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <UseWPF>true</UseWPF>
+    <AssemblyName>KROT.FieldTest</AssemblyName>
+    <RootNamespace>KROT.FieldTest</RootNamespace>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\KROT.Diagnostics\KROT.Diagnostics.csproj" />
+    <ProjectReference Include="..\KROT.Infrastructure\KROT.Infrastructure.csproj" />
+  </ItemGroup>
+</Project>
+

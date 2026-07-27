@@ -16,11 +16,15 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "KROT.Zapret", "src\KROT.Zap
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "KROT.Localization", "src\KROT.Localization\KROT.Localization.csproj", "{A71B6C4E-ED9D-459A-8B56-1BB0CE526107}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "KROT.FieldTest", "src\KROT.FieldTest\KROT.FieldTest.csproj", "{A71B6C4E-ED9D-459A-8B56-1BB0CE526111}"
+EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "KROT.Core.Tests", "tests\KROT.Core.Tests\KROT.Core.Tests.csproj", "{A71B6C4E-ED9D-459A-8B56-1BB0CE526108}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "KROT.Infrastructure.Tests", "tests\KROT.Infrastructure.Tests\KROT.Infrastructure.Tests.csproj", "{A71B6C4E-ED9D-459A-8B56-1BB0CE526109}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "KROT.Zapret.Tests", "tests\KROT.Zapret.Tests\KROT.Zapret.Tests.csproj", "{A71B6C4E-ED9D-459A-8B56-1BB0CE526110}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "KROT.Diagnostics.Tests", "tests\KROT.Diagnostics.Tests\KROT.Diagnostics.Tests.csproj", "{A71B6C4E-ED9D-459A-8B56-1BB0CE526112}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -56,6 +60,10 @@ Global
 		{A71B6C4E-ED9D-459A-8B56-1BB0CE526107}.Debug|x64.Build.0 = Debug|x64
 		{A71B6C4E-ED9D-459A-8B56-1BB0CE526107}.Release|x64.ActiveCfg = Release|x64
 		{A71B6C4E-ED9D-459A-8B56-1BB0CE526107}.Release|x64.Build.0 = Release|x64
+		{A71B6C4E-ED9D-459A-8B56-1BB0CE526111}.Debug|x64.ActiveCfg = Debug|x64
+		{A71B6C4E-ED9D-459A-8B56-1BB0CE526111}.Debug|x64.Build.0 = Debug|x64
+		{A71B6C4E-ED9D-459A-8B56-1BB0CE526111}.Release|x64.ActiveCfg = Release|x64
+		{A71B6C4E-ED9D-459A-8B56-1BB0CE526111}.Release|x64.Build.0 = Release|x64
 		{A71B6C4E-ED9D-459A-8B56-1BB0CE526108}.Debug|x64.ActiveCfg = Debug|x64
 		{A71B6C4E-ED9D-459A-8B56-1BB0CE526108}.Debug|x64.Build.0 = Debug|x64
 		{A71B6C4E-ED9D-459A-8B56-1BB0CE526108}.Release|x64.ActiveCfg = Release|x64
@@ -68,9 +76,12 @@ Global
 		{A71B6C4E-ED9D-459A-8B56-1BB0CE526110}.Debug|x64.Build.0 = Debug|x64
 		{A71B6C4E-ED9D-459A-8B56-1BB0CE526110}.Release|x64.ActiveCfg = Release|x64
 		{A71B6C4E-ED9D-459A-8B56-1BB0CE526110}.Release|x64.Build.0 = Release|x64
+		{A71B6C4E-ED9D-459A-8B56-1BB0CE526112}.Debug|x64.ActiveCfg = Debug|x64
+		{A71B6C4E-ED9D-459A-8B56-1BB0CE526112}.Debug|x64.Build.0 = Debug|x64
+		{A71B6C4E-ED9D-459A-8B56-1BB0CE526112}.Release|x64.ActiveCfg = Release|x64
+		{A71B6C4E-ED9D-459A-8B56-1BB0CE526112}.Release|x64.Build.0 = Release|x64
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
 	EndGlobalSection
 EndGlobal
-

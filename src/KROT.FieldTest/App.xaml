@@ -1,0 +1,35 @@
+<Application x:Class="KROT.FieldTest.App"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             ShutdownMode="OnExplicitShutdown">
+  <Application.Resources>
+    <SolidColorBrush x:Key="WindowBrush" Color="#15191D" />
+    <SolidColorBrush x:Key="PanelBrush" Color="#1D2329" />
+    <SolidColorBrush x:Key="TextBrush" Color="#F2F5F7" />
+    <SolidColorBrush x:Key="MutedTextBrush" Color="#96A1AA" />
+    <SolidColorBrush x:Key="AccentBrush" Color="#50D890" />
+    <SolidColorBrush x:Key="WarningBrush" Color="#F2BF4D" />
+    <Style TargetType="Button">
+      <Setter Property="Background" Value="#285E48" />
+      <Setter Property="Foreground" Value="{StaticResource TextBrush}" />
+      <Setter Property="BorderThickness" Value="0" />
+      <Setter Property="Padding" Value="16,9" />
+      <Setter Property="Cursor" Value="Hand" />
+      <Setter Property="Template">
+        <Setter.Value>
+          <ControlTemplate TargetType="Button">
+            <Border Background="{TemplateBinding Background}" CornerRadius="8" Padding="{TemplateBinding Padding}">
+              <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
+            </Border>
+            <ControlTemplate.Triggers>
+              <Trigger Property="IsEnabled" Value="False">
+                <Setter Property="Opacity" Value="0.45" />
+              </Trigger>
+            </ControlTemplate.Triggers>
+          </ControlTemplate>
+        </Setter.Value>
+      </Setter>
+    </Style>
+  </Application.Resources>
+</Application>
+

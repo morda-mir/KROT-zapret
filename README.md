@@ -44,6 +44,16 @@ dotnet test KROT.sln -c Release -p:Platform=x64 --no-build
 .\scripts\build.ps1
 ```
 
+Скрипт по умолчанию собирает локальную Debug-конфигурацию. Для явного выбора:
+
+```powershell
+.\scripts\build.ps1 -Configuration Debug
+.\scripts\build.ps1 -Configuration Release
+```
+
+Автономная проверка соединения без VPN описана в
+[docs/FIELD_TESTING.md](docs/FIELD_TESTING.md).
+
 Основное приложение после сборки:
 
 ```text
@@ -81,4 +91,3 @@ KROT не читает токены, cookies, сообщения, Discord-лог
 ## Лицензия
 
 Код KROT распространяется по лицензии MIT. Сторонние компоненты сохраняют собственные лицензии.
-

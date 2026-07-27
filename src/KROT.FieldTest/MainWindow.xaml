@@ -1,0 +1,75 @@
+<Window x:Class="KROT.FieldTest.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="KROT Field Test"
+        Width="620"
+        Height="540"
+        ResizeMode="NoResize"
+        WindowStartupLocation="CenterScreen"
+        Background="{StaticResource WindowBrush}"
+        Foreground="{StaticResource TextBrush}">
+  <Grid Margin="22">
+    <Grid.RowDefinitions>
+      <RowDefinition Height="Auto" />
+      <RowDefinition Height="Auto" />
+      <RowDefinition Height="*" />
+      <RowDefinition Height="Auto" />
+      <RowDefinition Height="Auto" />
+    </Grid.RowDefinitions>
+
+    <StackPanel>
+      <TextBlock Text="KROT · автономная проверка сети" FontSize="22" FontWeight="SemiBold" />
+      <TextBlock Text="Запускайте без VPN для проверки соединения через провайдера."
+                 Foreground="{StaticResource MutedTextBrush}"
+                 Margin="0,5,0,0" />
+    </StackPanel>
+
+    <Border Grid.Row="1"
+            x:Name="NetworkBanner"
+            Background="#2B2519"
+            CornerRadius="10"
+            Padding="12"
+            Margin="0,16,0,12">
+      <TextBlock x:Name="NetworkStatusText"
+                 Foreground="{StaticResource WarningBrush}"
+                 TextWrapping="Wrap" />
+    </Border>
+
+    <TextBox Grid.Row="2"
+             x:Name="ProgressText"
+             IsReadOnly="True"
+             AcceptsReturn="True"
+             VerticalScrollBarVisibility="Auto"
+             Background="#0E1114"
+             Foreground="#C8D0D6"
+             BorderBrush="#303840"
+             Padding="10"
+             FontFamily="Consolas"
+             FontSize="12" />
+
+    <TextBlock Grid.Row="3"
+               x:Name="ReportPathText"
+               Foreground="{StaticResource MutedTextBrush}"
+               TextTrimming="CharacterEllipsis"
+               Margin="0,12,0,10" />
+
+    <StackPanel Grid.Row="4" Orientation="Horizontal" HorizontalAlignment="Right">
+      <Button x:Name="OpenFolderButton"
+              Content="Открыть папку"
+              Background="#2C343B"
+              IsEnabled="False"
+              Click="OpenFolder_OnClick" />
+      <Button x:Name="CancelButton"
+              Content="Отмена"
+              Background="#5A3B3B"
+              IsEnabled="False"
+              Margin="8,0,0,0"
+              Click="Cancel_OnClick" />
+      <Button x:Name="RunButton"
+              Content="Начать проверку"
+              Margin="8,0,0,0"
+              Click="Run_OnClick" />
+    </StackPanel>
+  </Grid>
+</Window>
+
