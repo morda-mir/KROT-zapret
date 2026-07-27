@@ -23,16 +23,19 @@ public sealed class BuiltInPresetCatalogTests
     }
 
     [Fact]
-    public void Build_YouTube_UsesHostlistAndQuicScope()
+    public void Build_YouTube_UsesLegacyAltProfileAndQuicScope()
     {
         var plan = _catalog.Build(new KrotStartOptions
         {
             Services = { ServiceId.YouTube }
         });
 
-        Assert.Contains("--wf-tcp-out=443", plan.MainArguments);
-        Assert.Contains("--wf-udp-out=443", plan.MainArguments);
+        Assert.Contains("--wf-tcp=80,443", plan.MainArguments);
+        Assert.Contains("--wf-udp=443", plan.MainArguments);
         Assert.Contains(plan.MainArguments, x => x.Contains("youtube.txt"));
+        Assert.Contains(plan.MainArguments, x => x.Contains("fake,fakedsplit"));
+        Assert.Contains(plan.MainArguments, x => x.Contains("zapret1-v72.13"));
+        Assert.Contains("z1-youtube-alt-01", plan.PresetIds);
         Assert.False(plan.HasVoice);
     }
 
@@ -46,8 +49,13 @@ public sealed class BuiltInPresetCatalogTests
 
         Assert.True(plan.HasMain);
         Assert.True(plan.HasVoice);
+        Assert.Contains("--wf-tcp=80,443,2053,2083,2087,2096,8443", plan.MainArguments);
+        Assert.Contains(plan.MainArguments, x => x.Contains("discord.txt"));
         Assert.Contains(plan.VoiceArguments, x => x.Contains("discord_media"));
         Assert.Contains(plan.VoiceArguments, x => x.Contains("stun"));
-        Assert.DoesNotContain("--wf-udp-out=443", plan.VoiceArguments);
+        Assert.DoesNotContain("--wf-udp=443", plan.VoiceArguments);
+        Assert.Contains("z1-discord-alt-01", plan.PresetIds);
+        Assert.Contains("z2-discord-voice-01", plan.PresetIds);
     }
+
 }

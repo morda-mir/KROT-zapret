@@ -8,7 +8,6 @@ public static class FieldTestCatalog
     {
         new FieldTestEndpoint("discord", "discord.com", "/api/v10/gateway"),
         new FieldTestEndpoint("youtube", "www.youtube.com", "/generate_204"),
-        new FieldTestEndpoint("telegram", "telegram.org", "/"),
         new FieldTestEndpoint("ai-services", "chatgpt.com", "/")
     };
 }
@@ -28,4 +27,3 @@ public sealed class FieldTestEndpoint
 
     public string Path { get; }
 }
-

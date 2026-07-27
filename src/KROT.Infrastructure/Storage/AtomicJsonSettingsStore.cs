@@ -1,5 +1,6 @@
 using System;
 using System.IO;
+using System.Linq;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
@@ -16,7 +17,8 @@ public sealed class AtomicJsonSettingsStore : ISettingsStore
     private readonly JsonSerializerSettings _serializerSettings = new()
     {
         Formatting = Formatting.Indented,
-        MissingMemberHandling = MissingMemberHandling.Ignore
+        MissingMemberHandling = MissingMemberHandling.Ignore,
+        ObjectCreationHandling = ObjectCreationHandling.Replace
     };
 
     public AtomicJsonSettingsStore(string? path = null)
@@ -43,7 +45,9 @@ public sealed class AtomicJsonSettingsStore : ISettingsStore
             using var reader = new StreamReader(stream, Encoding.UTF8, true);
             var json = await reader.ReadToEndAsync().ConfigureAwait(false);
             cancellationToken.ThrowIfCancellationRequested();
-            return JsonConvert.DeserializeObject<KrotSettings>(json, _serializerSettings) ?? new KrotSettings();
+            return Normalize(
+                JsonConvert.DeserializeObject<KrotSettings>(json, _serializerSettings)
+                ?? new KrotSettings());
         }
         catch (JsonException)
         {
@@ -54,7 +58,9 @@ public sealed class AtomicJsonSettingsStore : ISettingsStore
             }
 
             var json = await ReadAllTextAsync(backup, cancellationToken).ConfigureAwait(false);
-            return JsonConvert.DeserializeObject<KrotSettings>(json, _serializerSettings) ?? new KrotSettings();
+            return Normalize(
+                JsonConvert.DeserializeObject<KrotSettings>(json, _serializerSettings)
+                ?? new KrotSettings());
         }
     }
 
@@ -109,5 +115,28 @@ public sealed class AtomicJsonSettingsStore : ISettingsStore
         var value = await reader.ReadToEndAsync().ConfigureAwait(false);
         cancellationToken.ThrowIfCancellationRequested();
         return value;
+    }
+
+    private static KrotSettings Normalize(KrotSettings settings)
+    {
+        settings.Services = settings.Services
+            .Where(x => Enum.IsDefined(typeof(ServiceId), x.Id))
+            .GroupBy(x => x.Id)
+            .Select(x => x.First())
+            .ToList();
+
+        foreach (ServiceId serviceId in Enum.GetValues(typeof(ServiceId)))
+        {
+            if (settings.Services.All(x => x.Id != serviceId))
+            {
+                settings.Services.Add(new ServiceSelection
+                {
+                    Id = serviceId,
+                    IsEnabled = false
+                });
+            }
+        }
+
+        return settings;
     }
 }

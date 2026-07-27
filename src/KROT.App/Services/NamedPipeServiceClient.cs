@@ -21,13 +21,13 @@ public sealed class NamedPipeServiceClient : IServiceClient
 
     public async Task StartAsync(KrotStartOptions options, CancellationToken cancellationToken)
     {
-        var snapshot = await SendAsync("start", options, cancellationToken).ConfigureAwait(false);
+        var snapshot = await SendAsync("start", options, cancellationToken);
         SnapshotChanged?.Invoke(this, snapshot);
     }
 
     public async Task StopAsync(CancellationToken cancellationToken)
     {
-        var snapshot = await SendAsync("stop", null, cancellationToken).ConfigureAwait(false);
+        var snapshot = await SendAsync("stop", null, cancellationToken);
         SnapshotChanged?.Invoke(this, snapshot);
     }
 

@@ -1,5 +1,6 @@
 using System;
 using System.IO;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using KROT.Core.Models;
@@ -33,6 +34,23 @@ public sealed class AtomicJsonSettingsStoreTests : IDisposable
         Assert.False(File.Exists(path + ".tmp"));
     }
 
+    [Fact]
+    public async Task Load_ReplacesDefaultsAndRemovesDuplicateServices()
+    {
+        var path = Path.Combine(_directory, "settings.json");
+        Directory.CreateDirectory(_directory);
+        File.WriteAllText(
+            path,
+            "{\"Services\":[{\"Id\":0,\"IsEnabled\":true},{\"Id\":0,\"IsEnabled\":false},{\"Id\":2,\"IsEnabled\":true}]}");
+
+        var loaded = await new AtomicJsonSettingsStore(path)
+            .LoadAsync(CancellationToken.None);
+
+        Assert.Equal(3, loaded.Services.Count);
+        Assert.True(loaded.Services.Single(x => x.Id == ServiceId.Discord).IsEnabled);
+        Assert.DoesNotContain(loaded.Services, x => (int)x.Id == 2);
+    }
+
     public void Dispose()
     {
         if (Directory.Exists(_directory))
@@ -41,4 +59,3 @@ public sealed class AtomicJsonSettingsStoreTests : IDisposable
         }
     }
 }
-

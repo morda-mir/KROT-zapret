@@ -18,8 +18,6 @@ public sealed class KrotSettings
     {
         new ServiceSelection { Id = ServiceId.Discord, IsEnabled = true },
         new ServiceSelection { Id = ServiceId.YouTube, IsEnabled = true },
-        new ServiceSelection { Id = ServiceId.Telegram, IsEnabled = false },
         new ServiceSelection { Id = ServiceId.AiServices, IsEnabled = false }
     };
 }
-

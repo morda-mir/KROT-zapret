@@ -43,12 +43,12 @@ public sealed class RealZapretProcessManager : IZapretProcessManager, IDisposabl
     public Task StartMainAsync(
         IReadOnlyList<string> arguments,
         CancellationToken cancellationToken) =>
-        StartAsync("main", arguments, cancellationToken);
+        StartAsync("main", arguments, RuntimeKind.Zapret1, cancellationToken);
 
     public Task StartVoiceAsync(
         IReadOnlyList<string> arguments,
         CancellationToken cancellationToken) =>
-        StartAsync("voice", arguments, cancellationToken);
+        StartAsync("voice", arguments, RuntimeKind.Zapret2, cancellationToken);
 
     public async Task RestartVoiceAsync(
         IReadOnlyList<string> arguments,
@@ -91,6 +91,7 @@ public sealed class RealZapretProcessManager : IZapretProcessManager, IDisposabl
     private async Task StartAsync(
         string role,
         IReadOnlyList<string> arguments,
+        RuntimeKind runtimeKind,
         CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
@@ -105,7 +106,7 @@ public sealed class RealZapretProcessManager : IZapretProcessManager, IDisposabl
             }
         }
 
-        var runtime = LoadAndVerifyActiveRuntime();
+        var runtime = LoadAndVerifyRuntime(runtimeKind);
         var marker = Guid.NewGuid();
         var startInfo = new ProcessStartInfo
         {
@@ -131,7 +132,7 @@ public sealed class RealZapretProcessManager : IZapretProcessManager, IDisposabl
         {
             if (!process.Start())
             {
-                throw new InvalidOperationException("winws2 did not start.");
+                throw new InvalidOperationException("Zapret runtime did not start.");
             }
 
             started = true;
@@ -172,7 +173,7 @@ public sealed class RealZapretProcessManager : IZapretProcessManager, IDisposabl
             if (process.HasExited)
             {
                 throw new InvalidOperationException(
-                    $"winws2 process '{role}' exited immediately with code {process.ExitCode}.");
+                    $"Zapret process '{role}' exited immediately with code {process.ExitCode}.");
             }
 
             _log.Info(
@@ -251,7 +252,7 @@ public sealed class RealZapretProcessManager : IZapretProcessManager, IDisposabl
         return Task.CompletedTask;
     }
 
-    private ActiveRuntime LoadAndVerifyActiveRuntime()
+    private ActiveRuntime LoadAndVerifyRuntime(RuntimeKind runtimeKind)
     {
         var manifestPath = SafePath("runtime-manifest.json");
         if (!File.Exists(manifestPath))
@@ -261,15 +262,21 @@ public sealed class RealZapretProcessManager : IZapretProcessManager, IDisposabl
 
         var manifest = JsonConvert.DeserializeObject<RuntimeManifest>(File.ReadAllText(manifestPath))
             ?? throw new InvalidDataException("KROT runtime manifest is invalid.");
-        if (string.IsNullOrWhiteSpace(manifest.ActiveZapret2))
+        var runtimeId = runtimeKind == RuntimeKind.Zapret1
+            ? manifest.LegacyZapret1
+            : manifest.ActiveZapret2;
+        var executableName = runtimeKind == RuntimeKind.Zapret1
+            ? "winws.exe"
+            : "winws2.exe";
+        if (string.IsNullOrWhiteSpace(runtimeId))
         {
-            throw new InvalidDataException("Active Zapret 2 runtime is not configured.");
+            throw new InvalidDataException("Requested Zapret runtime is not configured.");
         }
 
         var files = manifest.Files
             .Where(x => string.Equals(
                 x.RuntimeId,
-                manifest.ActiveZapret2,
+                runtimeId,
                 StringComparison.OrdinalIgnoreCase))
             .ToList();
         var sharedFiles = manifest.Files
@@ -286,13 +293,17 @@ public sealed class RealZapretProcessManager : IZapretProcessManager, IDisposabl
         }
 
         var executable = files.FirstOrDefault(x =>
-            x.RelativePath.EndsWith("winws2.exe", StringComparison.OrdinalIgnoreCase))
-            ?? throw new InvalidDataException("winws2.exe is not listed in the runtime manifest.");
+            x.RelativePath.EndsWith(executableName, StringComparison.OrdinalIgnoreCase))
+            ?? throw new InvalidDataException(
+                $"{executableName} is not listed in the runtime manifest.");
         var executablePath = SafePath(executable.RelativePath);
         RequireFile(Path.Combine(Path.GetDirectoryName(executablePath)!, "WinDivert.dll"));
         RequireFile(Path.Combine(Path.GetDirectoryName(executablePath)!, "WinDivert64.sys"));
-        RequireFile(Path.Combine(Path.GetDirectoryName(executablePath)!, "lua", "zapret-lib.lua"));
-        RequireFile(Path.Combine(Path.GetDirectoryName(executablePath)!, "lua", "zapret-antidpi.lua"));
+        if (runtimeKind == RuntimeKind.Zapret2)
+        {
+            RequireFile(Path.Combine(Path.GetDirectoryName(executablePath)!, "lua", "zapret-lib.lua"));
+            RequireFile(Path.Combine(Path.GetDirectoryName(executablePath)!, "lua", "zapret-antidpi.lua"));
+        }
         var cygwinPath = sharedFiles
             .Where(x => x.RelativePath.EndsWith("cygwin1.dll", StringComparison.OrdinalIgnoreCase))
             .Select(x => SafePath(x.RelativePath))
@@ -337,7 +348,7 @@ public sealed class RealZapretProcessManager : IZapretProcessManager, IDisposabl
             if (string.IsNullOrWhiteSpace(argument)
                 || argument.IndexOfAny(new[] { '\r', '\n', '\0' }) >= 0)
             {
-                throw new InvalidDataException("Unsafe winws2 argument.");
+                throw new InvalidDataException("Unsafe Zapret argument.");
             }
         }
     }
@@ -425,5 +436,11 @@ public sealed class RealZapretProcessManager : IZapretProcessManager, IDisposabl
         public string DependencyDirectory { get; set; } = string.Empty;
 
         public string ExecutableSha256 { get; set; } = string.Empty;
+    }
+
+    private enum RuntimeKind
+    {
+        Zapret1,
+        Zapret2
     }
 }

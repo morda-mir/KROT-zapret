@@ -312,13 +312,6 @@ public sealed class MainWindowViewModel : ObservableObject, IDisposable
                 Channel("▶", "Channel.YouTube.Video"),
                 Channel("Q", "Channel.YouTube.Quic")),
             new(
-                ServiceId.Telegram,
-                "T",
-                IsSelected(ServiceId.Telegram),
-                OnServiceSelectionChanged,
-                Channel("✉", "Channel.Telegram.Api"),
-                Channel("▧", "Channel.Telegram.Media")),
-            new(
                 ServiceId.AiServices,
                 "AI",
                 IsSelected(ServiceId.AiServices),

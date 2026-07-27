@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -7,6 +8,7 @@ namespace KROT.Zapret.Profiles;
 
 public sealed class BuiltInPresetCatalog
 {
+    private const string LegacyRuntimeId = "zapret1-v72.13";
     private readonly string _runtimeRoot;
 
     public BuiltInPresetCatalog(string runtimeRoot)
@@ -18,48 +20,39 @@ public sealed class BuiltInPresetCatalog
     {
         var selected = new HashSet<ServiceId>(options.Services);
         var main = new List<string>();
-        var presetIds = new List<string>();
         var profiles = new List<IReadOnlyList<string>>();
+        var presetIds = new List<string>();
 
-        foreach (var serviceId in selected)
+        if (selected.Contains(ServiceId.Discord))
         {
-            switch (serviceId)
-            {
-                case ServiceId.Discord:
-                    profiles.Add(TlsProfile("discord.txt"));
-                    presetIds.Add("z2-discord-tls-rnd-01");
-                    break;
-                case ServiceId.YouTube:
-                    profiles.Add(TlsProfile("youtube.txt"));
-                    profiles.Add(QuicProfile("youtube.txt"));
-                    presetIds.Add("z2-youtube-tls-quic-01");
-                    break;
-                case ServiceId.Telegram:
-                    profiles.Add(TlsProfile("telegram.txt"));
-                    presetIds.Add("z2-telegram-tls-rnd-01");
-                    break;
-                case ServiceId.AiServices:
-                    // Direct diagnostics show this channel is reachable; do not intercept it.
-                    break;
-            }
+            profiles.Add(DiscordMediaProfile());
+            profiles.Add(TlsProfile("discord.txt", includeHttp: true));
+            presetIds.Add("z1-discord-alt-01");
+        }
+
+        if (selected.Contains(ServiceId.YouTube))
+        {
+            profiles.Add(YouTubeTlsProfile());
+            profiles.Add(QuicProfile("youtube.txt"));
+            presetIds.Add("z1-youtube-alt-01");
         }
 
         if (profiles.Count > 0)
         {
-            main.Add("--lua-init=@lua\\zapret-lib.lua");
-            main.Add("--lua-init=@lua\\zapret-antidpi.lua");
-            main.Add("--blob=quic_google:@fake\\quic_initial_www_google_com.bin");
-            main.Add("--wf-tcp-out=443");
+            var tcpPorts = selected.Contains(ServiceId.Discord)
+                ? "80,443,2053,2083,2087,2096,8443"
+                : "80,443";
+            main.Add($"--wf-tcp={tcpPorts}");
             if (selected.Contains(ServiceId.YouTube))
             {
-                main.Add("--wf-udp-out=443");
+                main.Add("--wf-udp=443");
             }
 
             AddProfiles(main, profiles);
         }
 
         var voice = new List<string>();
-        if (selected.Contains(ServiceId.Discord))
+        if (selected.Contains(ServiceId.Discord) && !options.SkipVoice)
         {
             voice.Add("--lua-init=@lua\\zapret-lib.lua");
             voice.Add("--lua-init=@lua\\zapret-antidpi.lua");
@@ -79,25 +72,61 @@ public sealed class BuiltInPresetCatalog
         };
     }
 
-    private IReadOnlyList<string> TlsProfile(string hostlist) => new[]
+    private IReadOnlyList<string> DiscordMediaProfile() => new[]
+    {
+        "--filter-tcp=2053,2083,2087,2096,8443",
+        "--hostlist-domains=discord.media",
+        "--dpi-desync=fake,fakedsplit",
+        "--dpi-desync-repeats=6",
+        "--dpi-desync-fooling=ts",
+        "--dpi-desync-fakedsplit-pattern=0x00",
+        $"--dpi-desync-fake-tls={LegacyFake("tls_clienthello_www_google_com.bin")}"
+    };
+
+    private IReadOnlyList<string> YouTubeTlsProfile() => new[]
     {
         "--filter-tcp=443",
-        "--filter-l7=tls",
-        $"--hostlist={RuntimeFile("hostlists", hostlist)}",
-        "--out-range=-d10",
-        "--payload=tls_client_hello",
-        "--lua-desync=fake:blob=fake_default_tls:tcp_md5:tcp_seq=-10000:repeats=6",
-        "--lua-desync=multidisorder:pos=midsld"
+        $"--hostlist={RuntimeFile("hostlists", "youtube.txt")}",
+        "--ip-id=zero",
+        "--dpi-desync=fake,fakedsplit",
+        "--dpi-desync-repeats=6",
+        "--dpi-desync-fooling=ts",
+        "--dpi-desync-fakedsplit-pattern=0x00",
+        $"--dpi-desync-fake-tls={LegacyFake("tls_clienthello_www_google_com.bin")}"
     };
+
+    private IReadOnlyList<string> TlsProfile(string hostlist, bool includeHttp)
+    {
+        var result = new List<string>
+        {
+            "--filter-tcp=80,443",
+            $"--hostlist={RuntimeFile("hostlists", hostlist)}",
+            "--dpi-desync=fake,fakedsplit",
+            "--dpi-desync-repeats=6",
+            "--dpi-desync-fooling=ts",
+            "--dpi-desync-fakedsplit-pattern=0x00",
+            $"--dpi-desync-fake-tls={LegacyFake("stun.bin")}",
+            $"--dpi-desync-fake-tls={LegacyFake("tls_clienthello_www_google_com.bin")}"
+        };
+        if (includeHttp)
+        {
+            result.Add($"--dpi-desync-fake-http={LegacyFake("http_iana_org.bin")}");
+        }
+
+        return result;
+    }
 
     private IReadOnlyList<string> QuicProfile(string hostlist) => new[]
     {
         "--filter-udp=443",
-        "--filter-l7=quic",
         $"--hostlist={RuntimeFile("hostlists", hostlist)}",
-        "--payload=quic_initial",
-        "--lua-desync=fake:blob=quic_google:repeats=11"
+        "--dpi-desync=fake",
+        "--dpi-desync-repeats=6",
+        $"--dpi-desync-fake-quic={LegacyFake("quic_initial_www_google_com.bin")}"
     };
+
+    private string LegacyFake(string file) =>
+        RuntimeFile(Path.Combine(LegacyRuntimeId, "fake"), file);
 
     private string RuntimeFile(string folder, string file) =>
         Path.GetFullPath(Path.Combine(_runtimeRoot, folder, file));

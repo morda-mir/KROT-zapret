@@ -10,15 +10,15 @@ KROT работает локально, не является VPN, не испо
 
 - компактный WPF-интерфейс и системный трей;
 - русский и английский языки;
-- выбор Discord, YouTube, Telegram и нейросетей;
+- выбор Discord, YouTube и нейросетей;
 - явная модель состояний;
 - Windows Service и защищённый Named Pipe;
 - отдельные роли `main` и `voice`;
 - атомарные JSON-настройки;
 - пользовательский журнал и ротируемые технические логи;
-- локальный Debug runtime на Zapret 2 v1.0.3;
+- локальный Debug runtime на Zapret v72.13 и Zapret 2 v1.0.3;
 - проверка runtime-файлов по SHA-256 и владение процессами через Job Object;
-- точечные профили Discord, YouTube и Telegram;
+- точечные профили Discord и YouTube;
 - unit- и integration-подобные тесты менеджера процессов и профилей;
 - заготовка установщика Inno Setup.
 
