@@ -3,8 +3,15 @@
   "activeZapret2": "zapret2-v1.0.3",
   "previousZapret2": "zapret2-v1.0.2",
   "legacyZapret1": "zapret1-v72.13",
-  "fakeRuntimeOnly": true,
+  "fakeRuntimeOnly": false,
   "files": [
+    {
+      "runtimeId": "shared",
+      "relativePath": "shared/cygwin1.dll",
+      "version": "3.4.10",
+      "sha256": "103104a52e5293ce418944725df19e2bf81ad9269b9a120d71d39028e821499b",
+      "sourceUrl": "https://github.com/bol-van/zapret2/releases/download/v1.0.3/zapret2-v1.0.3.zip"
+    },
     {
       "runtimeId": "zapret2-v1.0.3",
       "relativePath": "zapret2-v1.0.3/winws2.exe",
@@ -70,4 +77,3 @@
     }
   ]
 }
-

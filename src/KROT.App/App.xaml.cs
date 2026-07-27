@@ -44,7 +44,11 @@ public partial class App
             var localization = new DictionaryLocalizationService(settings.Language);
             var log = new RotatingFileLogService(settings.DetailedLogs);
             var autoStart = new RegistryAutoStartManager();
+#if DEBUG
+            var serviceClient = (KROT.Core.Contracts.IServiceClient)new NamedPipeServiceClient();
+#else
             var serviceClient = new FakeServiceClient();
+#endif
             _viewModel = new MainWindowViewModel(
                 settings,
                 settingsStore,
@@ -88,4 +92,3 @@ public partial class App
         base.OnExit(e);
     }
 }
-

@@ -11,8 +11,7 @@ public interface IServiceClient
 
     Task<ServiceSnapshot> GetStatusAsync(CancellationToken cancellationToken);
 
-    Task StartAsync(CancellationToken cancellationToken);
+    Task StartAsync(KrotStartOptions options, CancellationToken cancellationToken);
 
     Task StopAsync(CancellationToken cancellationToken);
 }
-

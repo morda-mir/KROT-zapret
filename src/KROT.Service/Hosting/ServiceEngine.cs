@@ -4,30 +4,41 @@ using System.Threading.Tasks;
 using KROT.Core.Contracts;
 using KROT.Core.Models;
 using KROT.Core.States;
+using KROT.Zapret.Profiles;
 
 namespace KROT.Service.Hosting;
 
 public sealed class ServiceEngine
 {
     private readonly IZapretProcessManager _processManager;
+    private readonly BuiltInPresetCatalog _presetCatalog;
     private readonly ILogService _log;
+    private readonly bool _isFakeRuntime;
     private readonly SemaphoreSlim _gate = new(1, 1);
     private readonly AppStateMachine _stateMachine = new();
 
-    public ServiceEngine(IZapretProcessManager processManager, ILogService log)
+    public ServiceEngine(
+        IZapretProcessManager processManager,
+        BuiltInPresetCatalog presetCatalog,
+        ILogService log,
+        bool isFakeRuntime)
     {
         _processManager = processManager;
+        _presetCatalog = presetCatalog;
         _log = log;
+        _isFakeRuntime = isFakeRuntime;
     }
 
     public ServiceSnapshot Snapshot => new()
     {
         AppState = _stateMachine.State,
         MessageKey = MessageKeyFor(_stateMachine.State),
-        IsFakeRuntime = true
+        IsFakeRuntime = _isFakeRuntime
     };
 
-    public async Task StartAsync(CancellationToken cancellationToken)
+    public async Task StartAsync(
+        KrotStartOptions options,
+        CancellationToken cancellationToken)
     {
         await _gate.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
@@ -38,18 +49,32 @@ public sealed class ServiceEngine
             }
 
             _stateMachine.TransitionTo(AppState.Starting);
-            _log.Info("runtime.starting", "Starting fake KROT runtime.");
-            await Task.Delay(100, cancellationToken).ConfigureAwait(false);
+            _log.Info(
+                "runtime.starting",
+                $"Starting KROT runtime for {options.Services.Count} selected service(s).");
 
             _stateMachine.TransitionTo(AppState.TestingDirect);
-            await Task.Delay(100, cancellationToken).ConfigureAwait(false);
+            var plan = _presetCatalog.Build(options);
 
             _stateMachine.TransitionTo(AppState.TestingSavedProfiles);
-            await _processManager.StartMainAsync(Array.Empty<string>(), cancellationToken).ConfigureAwait(false);
-            await _processManager.StartVoiceAsync(Array.Empty<string>(), cancellationToken).ConfigureAwait(false);
+            if (plan.HasMain)
+            {
+                await _processManager
+                    .StartMainAsync(plan.MainArguments, cancellationToken)
+                    .ConfigureAwait(false);
+            }
+
+            if (plan.HasVoice)
+            {
+                await _processManager
+                    .StartVoiceAsync(plan.VoiceArguments, cancellationToken)
+                    .ConfigureAwait(false);
+            }
 
             _stateMachine.TransitionTo(AppState.Running);
-            _log.Info("runtime.running", "Fake main and voice processes are active.");
+            _log.Info(
+                "runtime.running",
+                $"KROT runtime active. presets={string.Join(",", plan.PresetIds)}.");
         }
         catch (OperationCanceledException)
         {
@@ -59,6 +84,20 @@ public sealed class ServiceEngine
         catch (Exception ex)
         {
             _log.Error("runtime.start.failed", "Failed to start KROT runtime.", ex);
+            try
+            {
+                await _processManager
+                    .StopAllOwnedAsync(CancellationToken.None)
+                    .ConfigureAwait(false);
+            }
+            catch (Exception cleanupException)
+            {
+                _log.Error(
+                    "runtime.start.cleanup.failed",
+                    "Failed to clean up KROT-owned processes after a start error.",
+                    cleanupException);
+            }
+
             if (_stateMachine.CanTransitionTo(AppState.FatalError))
             {
                 _stateMachine.TransitionTo(AppState.FatalError);
@@ -99,7 +138,7 @@ public sealed class ServiceEngine
 
         await _processManager.StopAllOwnedAsync(cancellationToken).ConfigureAwait(false);
         _stateMachine.TransitionTo(AppState.Off);
-        _log.Info("runtime.stopped", "All KROT-owned fake processes stopped.");
+        _log.Info("runtime.stopped", "All KROT-owned processes stopped.");
     }
 
     private static string MessageKeyFor(AppState state)
@@ -116,4 +155,3 @@ public sealed class ServiceEngine
         };
     }
 }
-

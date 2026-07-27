@@ -8,6 +8,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using KROT.Core.Contracts;
 using KROT.Core.Ipc;
+using KROT.Core.Models;
 using KROT.Service.Hosting;
 using Newtonsoft.Json;
 
@@ -86,7 +87,9 @@ public sealed class NamedPipeCommandServer
                 case "status":
                     break;
                 case "start":
-                    await _engine.StartAsync(cancellationToken).ConfigureAwait(false);
+                    await _engine.StartAsync(
+                        request.StartOptions ?? new KrotStartOptions(),
+                        cancellationToken).ConfigureAwait(false);
                     break;
                 case "stop":
                     await _engine.StopAsync(cancellationToken).ConfigureAwait(false);
@@ -137,4 +140,3 @@ public sealed class NamedPipeCommandServer
             security);
     }
 }
-

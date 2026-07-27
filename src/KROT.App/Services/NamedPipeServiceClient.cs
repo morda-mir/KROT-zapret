@@ -17,21 +17,24 @@ public sealed class NamedPipeServiceClient : IServiceClient
     public event EventHandler<ServiceSnapshot>? SnapshotChanged;
 
     public Task<ServiceSnapshot> GetStatusAsync(CancellationToken cancellationToken) =>
-        SendAsync("status", cancellationToken);
+        SendAsync("status", null, cancellationToken);
 
-    public async Task StartAsync(CancellationToken cancellationToken)
+    public async Task StartAsync(KrotStartOptions options, CancellationToken cancellationToken)
     {
-        var snapshot = await SendAsync("start", cancellationToken).ConfigureAwait(false);
+        var snapshot = await SendAsync("start", options, cancellationToken).ConfigureAwait(false);
         SnapshotChanged?.Invoke(this, snapshot);
     }
 
     public async Task StopAsync(CancellationToken cancellationToken)
     {
-        var snapshot = await SendAsync("stop", cancellationToken).ConfigureAwait(false);
+        var snapshot = await SendAsync("stop", null, cancellationToken).ConfigureAwait(false);
         SnapshotChanged?.Invoke(this, snapshot);
     }
 
-    private static async Task<ServiceSnapshot> SendAsync(string command, CancellationToken cancellationToken)
+    private static async Task<ServiceSnapshot> SendAsync(
+        string command,
+        KrotStartOptions? options,
+        CancellationToken cancellationToken)
     {
         var sid = WindowsIdentity.GetCurrent().User?.Value
             ?? throw new InvalidOperationException("Cannot determine current user SID.");
@@ -47,7 +50,7 @@ public sealed class NamedPipeServiceClient : IServiceClient
             AutoFlush = true
         };
         using var reader = new StreamReader(pipe, Encoding.UTF8, false, 4096, leaveOpen: true);
-        var request = new ServiceRequest { Command = command };
+        var request = new ServiceRequest { Command = command, StartOptions = options };
         await writer.WriteLineAsync(JsonConvert.SerializeObject(request)).ConfigureAwait(false);
         var line = await reader.ReadLineAsync().ConfigureAwait(false);
         cancellationToken.ThrowIfCancellationRequested();

@@ -88,7 +88,7 @@ public sealed class MainWindowViewModel : ObservableObject, IDisposable
 
     public string SubtitleText => _localization.Get("App.Subtitle");
 
-    public string FooterText => _localization.Get("Footer.FakeRuntime");
+    public string FooterText => _localization.Get("Footer.Runtime");
 
     public string AutoStartText => _localization.Get("AutoStart");
 
@@ -227,7 +227,12 @@ public sealed class MainWindowViewModel : ObservableObject, IDisposable
             }
             else
             {
-                await _serviceClient.StartAsync(_lifetime.Token);
+                var options = new KrotStartOptions
+                {
+                    Services = Services.Where(x => x.IsSelected).Select(x => x.Id).ToList(),
+                    DetailedLogs = DetailedLogs
+                };
+                await _serviceClient.StartAsync(options, _lifetime.Token);
                 AddJournal("Journal.Enabled");
             }
         }

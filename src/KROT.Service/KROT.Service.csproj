@@ -13,5 +13,9 @@
     <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
     <Reference Include="System.ServiceProcess" />
   </ItemGroup>
+  <ItemGroup>
+    <Content Include="..\..\third_party\zapret\**\*.*"
+             Link="runtime\%(RecursiveDir)%(Filename)%(Extension)"
+             CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
 </Project>
-

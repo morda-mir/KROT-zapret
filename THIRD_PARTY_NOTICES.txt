@@ -27,6 +27,15 @@ KROT использует WinDivert как отдельный динамичес
 
 Полный текст лицензий: third_party/licenses/WinDivert-LICENSE.txt
 
+Cygwin runtime
+--------------
+Официальный проект: https://cygwin.com/
+Версия DLL: 3.4.10
+Авторские права: Cygwin Authors и Red Hat.
+Лицензия: GNU LGPL версии 3 или новее с Cygwin Linking Exception.
+
+Условия и ссылка на исходный код: https://cygwin.com/licensing.html
+
 CommunityToolkit.Mvvm
 ---------------------
 Официальный проект: https://github.com/CommunityToolkit/dotnet
@@ -41,4 +50,3 @@ xUnit.net
 ---------
 Официальный проект: https://github.com/xunit/xunit
 Лицензия: Apache-2.0
-

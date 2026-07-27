@@ -16,11 +16,13 @@ KROT работает локально, не является VPN, не испо
 - отдельные роли `main` и `voice`;
 - атомарные JSON-настройки;
 - пользовательский журнал и ротируемые технические логи;
-- fake runtime для безопасной разработки;
-- unit- и integration-подобные тесты менеджера процессов;
+- локальный Debug runtime на Zapret 2 v1.0.3;
+- проверка runtime-файлов по SHA-256 и владение процессами через Job Object;
+- точечные профили Discord, YouTube и Telegram;
+- unit- и integration-подобные тесты менеджера процессов и профилей;
 - заготовка установщика Inno Setup.
 
-В alpha-версии реальная модификация сетевого трафика отключена. Сторонние runtime-компоненты добавлены и проверяются по SHA-256, но будут подключены после формирования библиотеки контролируемых пресетов.
+Публичная alpha-сборка пока остаётся на fake runtime. В локальной Debug-сборке реальный runtime включается отдельной Windows-службой и используется для полевых тестов контролируемых пресетов.
 
 ## Требования
 
@@ -54,10 +56,22 @@ dotnet test KROT.sln -c Release -p:Platform=x64 --no-build
 Автономная проверка соединения без VPN описана в
 [docs/FIELD_TESTING.md](docs/FIELD_TESTING.md).
 
-Основное приложение после сборки:
+Для локальной проверки реального runtime нужно установить и запустить Debug-службу:
+
+```powershell
+.\scripts\install-debug-service.ps1
+```
+
+Удаление службы:
+
+```powershell
+.\scripts\uninstall-debug-service.ps1
+```
+
+Основное Debug-приложение после сборки:
 
 ```text
-src\KROT.App\bin\x64\Release\net48\KROT.exe
+src\KROT.App\bin\x64\Debug\net48\KROT.exe
 ```
 
 ## Структура

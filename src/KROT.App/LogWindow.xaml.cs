@@ -34,8 +34,8 @@ public partial class LogWindow
 
     private void OpenFolder_OnClick(object sender, RoutedEventArgs e)
     {
-        Directory.CreateDirectory(AppPaths.LogsDirectory);
-        Process.Start(new ProcessStartInfo("explorer.exe", $"\"{AppPaths.LogsDirectory}\"")
+        Directory.CreateDirectory(AppPaths.ServiceLogsDirectory);
+        Process.Start(new ProcessStartInfo("explorer.exe", $"\"{AppPaths.ServiceLogsDirectory}\"")
         {
             UseShellExecute = true
         });
@@ -59,9 +59,36 @@ public partial class LogWindow
 
     private void RefreshLog()
     {
-        var path = Path.Combine(AppPaths.LogsDirectory, "krot-current.log");
-        LogText.Text = File.Exists(path)
-            ? File.ReadAllText(path)
-            : (_isRussian ? "Лог пока пуст." : "The log is empty.");
+        var serviceLog = ReadCurrentLog(AppPaths.ServiceLogsDirectory);
+        var userLog = ReadCurrentLog(AppPaths.LogsDirectory);
+        if (string.IsNullOrWhiteSpace(serviceLog) && string.IsNullOrWhiteSpace(userLog))
+        {
+            LogText.Text = _isRussian ? "Лог пока пуст." : "The log is empty.";
+            return;
+        }
+
+        LogText.Text =
+            "=== KROT SERVICE ===" + Environment.NewLine
+            + serviceLog
+            + Environment.NewLine
+            + "=== KROT GUI ===" + Environment.NewLine
+            + userLog;
+    }
+
+    private static string ReadCurrentLog(string directory)
+    {
+        var path = Path.Combine(directory, "krot-current.log");
+        try
+        {
+            return File.Exists(path) ? File.ReadAllText(path) : string.Empty;
+        }
+        catch (UnauthorizedAccessException)
+        {
+            return "Log access denied.";
+        }
+        catch (IOException ex)
+        {
+            return $"Log read failed: {ex.Message}";
+        }
     }
 }

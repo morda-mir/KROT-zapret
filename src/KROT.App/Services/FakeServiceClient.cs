@@ -19,7 +19,7 @@ public sealed class FakeServiceClient : IServiceClient
         return Task.FromResult(CreateSnapshot());
     }
 
-    public async Task StartAsync(CancellationToken cancellationToken)
+    public async Task StartAsync(KrotStartOptions options, CancellationToken cancellationToken)
     {
         if (_stateMachine.State != AppState.Off)
         {
@@ -69,4 +69,3 @@ public sealed class FakeServiceClient : IServiceClient
         IsFakeRuntime = true
     };
 }
-

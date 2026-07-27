@@ -23,7 +23,7 @@ public sealed class DictionaryLocalizationService : ILocalizationService
                 ["Status.Starting"] = "Проверка выбранных сервисов",
                 ["Status.TestingDirect"] = "Проверка прямого доступа",
                 ["Status.Searching"] = "Подбор рабочих профилей",
-                ["Status.Running"] = "Доступ включён · fake runtime",
+                ["Status.Running"] = "Доступ включён",
                 ["Status.Stopping"] = "Остановка",
                 ["Status.Error"] = "Не удалось запустить доступ",
                 ["Service.Discord"] = "Discord",
@@ -37,7 +37,7 @@ public sealed class DictionaryLocalizationService : ILocalizationService
                 ["Menu.Zapret"] = "Официальный Zapret",
                 ["Menu.Licenses"] = "Лицензии",
                 ["Menu.Version"] = "Версия 0.1.0-alpha",
-                ["Footer.FakeRuntime"] = "KROT управляет только запущенными им процессами. В этой сборке используется fake runtime.",
+                ["Footer.Runtime"] = "KROT управляет только запущенными им процессами. Системные сетевые настройки не изменяются.",
                 ["Channel.Discord.Text"] = "Discord: текст и API",
                 ["Channel.Discord.Media"] = "Discord: медиа и CDN",
                 ["Channel.Discord.Voice"] = "Discord: голос",
@@ -56,7 +56,7 @@ public sealed class DictionaryLocalizationService : ILocalizationService
                 ["Journal.Ready"] = "Готово к запуску",
                 ["Journal.Direct"] = "Проверка прямого доступа",
                 ["Journal.Profiles"] = "Проверка сохранённых профилей",
-                ["Journal.Enabled"] = "Доступ включён в тестовом режиме",
+                ["Journal.Enabled"] = "Доступ включён в отладочном режиме",
                 ["Journal.Disabled"] = "Доступ выключен"
             },
             ["en"] = new Dictionary<string, string>
@@ -73,7 +73,7 @@ public sealed class DictionaryLocalizationService : ILocalizationService
                 ["Status.Starting"] = "Checking selected services",
                 ["Status.TestingDirect"] = "Checking direct access",
                 ["Status.Searching"] = "Searching for working profiles",
-                ["Status.Running"] = "Access enabled · fake runtime",
+                ["Status.Running"] = "Access enabled",
                 ["Status.Stopping"] = "Stopping",
                 ["Status.Error"] = "Could not enable access",
                 ["Service.Discord"] = "Discord",
@@ -87,7 +87,7 @@ public sealed class DictionaryLocalizationService : ILocalizationService
                 ["Menu.Zapret"] = "Official Zapret",
                 ["Menu.Licenses"] = "Licenses",
                 ["Menu.Version"] = "Version 0.1.0-alpha",
-                ["Footer.FakeRuntime"] = "KROT controls only the processes it starts. This build uses a fake runtime.",
+                ["Footer.Runtime"] = "KROT controls only the processes it starts. System network settings are not changed.",
                 ["Channel.Discord.Text"] = "Discord text and API",
                 ["Channel.Discord.Media"] = "Discord media and CDN",
                 ["Channel.Discord.Voice"] = "Discord voice",
@@ -106,7 +106,7 @@ public sealed class DictionaryLocalizationService : ILocalizationService
                 ["Journal.Ready"] = "Ready",
                 ["Journal.Direct"] = "Checking direct access",
                 ["Journal.Profiles"] = "Checking saved profiles",
-                ["Journal.Enabled"] = "Access enabled in test mode",
+                ["Journal.Enabled"] = "Access enabled in debug mode",
                 ["Journal.Disabled"] = "Access disabled"
             }
         };

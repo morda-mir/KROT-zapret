@@ -16,5 +16,6 @@ public static class AppPaths
     public static string LogsDirectory => Path.Combine(UserDataRoot, "logs");
 
     public static string ServiceStateDirectory => Path.Combine(CommonDataRoot, "service-state");
-}
 
+    public static string ServiceLogsDirectory => Path.Combine(ServiceStateDirectory, "logs");
+}
