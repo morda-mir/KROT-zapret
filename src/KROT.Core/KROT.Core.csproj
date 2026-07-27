@@ -1,0 +1,7 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <AssemblyName>KROT.Core</AssemblyName>
+    <RootNamespace>KROT.Core</RootNamespace>
+  </PropertyGroup>
+</Project>
+

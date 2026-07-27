@@ -1,0 +1,14 @@
+.vs/
+.idea/
+**/bin/
+**/obj/
+TestResults/
+artifacts/
+packages/
+*.user
+*.suo
+*.nupkg
+*.log
+installer/Output/
+third_party/downloads/
+

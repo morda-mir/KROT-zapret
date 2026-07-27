@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 160 120" role="img" aria-label="KROT placeholder">
+  <ellipse cx="80" cy="98" rx="70" ry="15" fill="#0c0f11"/>
+  <ellipse cx="81" cy="59" rx="36" ry="39" fill="#66717a"/>
+  <circle cx="51" cy="30" r="14" fill="#59636c"/>
+  <circle cx="113" cy="30" r="14" fill="#59636c"/>
+  <circle cx="66" cy="50" r="4.5" fill="#111519"/>
+  <circle cx="98" cy="50" r="4.5" fill="#111519"/>
+  <ellipse cx="82" cy="64" rx="6" ry="4.5" fill="#d9a497"/>
+  <path d="M72 73c7 7 14 7 21 0" fill="none" stroke="#252b30" stroke-width="3" stroke-linecap="round"/>
+</svg>
+

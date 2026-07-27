@@ -1,0 +1,10 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <AssemblyName>KROT.Localization</AssemblyName>
+    <RootNamespace>KROT.Localization</RootNamespace>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\KROT.Core\KROT.Core.csproj" />
+  </ItemGroup>
+</Project>
+

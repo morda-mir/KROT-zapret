@@ -1,0 +1,85 @@
+<Application x:Class="KROT.App.App"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:converters="clr-namespace:KROT.App.Converters"
+             ShutdownMode="OnExplicitShutdown">
+  <Application.Resources>
+    <converters:BooleanToVisibilityConverter x:Key="BoolToVisibility" />
+    <converters:InverseBooleanConverter x:Key="InverseBoolean" />
+    <converters:StateBrushConverter x:Key="StateBrush" />
+
+    <SolidColorBrush x:Key="WindowBrush" Color="#15191D" />
+    <SolidColorBrush x:Key="PanelBrush" Color="#1D2329" />
+    <SolidColorBrush x:Key="PanelHoverBrush" Color="#262E36" />
+    <SolidColorBrush x:Key="TextBrush" Color="#F2F5F7" />
+    <SolidColorBrush x:Key="MutedTextBrush" Color="#96A1AA" />
+    <SolidColorBrush x:Key="AccentBrush" Color="#50D890" />
+    <SolidColorBrush x:Key="WarningBrush" Color="#F2BF4D" />
+    <SolidColorBrush x:Key="ErrorBrush" Color="#ED6262" />
+
+    <Style TargetType="Button">
+      <Setter Property="Background" Value="{StaticResource PanelBrush}" />
+      <Setter Property="Foreground" Value="{StaticResource TextBrush}" />
+      <Setter Property="BorderThickness" Value="0" />
+      <Setter Property="Cursor" Value="Hand" />
+      <Setter Property="Padding" Value="12,8" />
+      <Setter Property="Template">
+        <Setter.Value>
+          <ControlTemplate TargetType="Button">
+            <Border x:Name="Border"
+                    Background="{TemplateBinding Background}"
+                    CornerRadius="8"
+                    Padding="{TemplateBinding Padding}">
+              <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
+            </Border>
+            <ControlTemplate.Triggers>
+              <Trigger Property="IsMouseOver" Value="True">
+                <Setter TargetName="Border" Property="Background" Value="{StaticResource PanelHoverBrush}" />
+              </Trigger>
+              <Trigger Property="IsEnabled" Value="False">
+                <Setter TargetName="Border" Property="Opacity" Value="0.55" />
+              </Trigger>
+            </ControlTemplate.Triggers>
+          </ControlTemplate>
+        </Setter.Value>
+      </Setter>
+    </Style>
+
+    <Style x:Key="ServiceCheckBox" TargetType="CheckBox">
+      <Setter Property="Width" Value="24" />
+      <Setter Property="Height" Value="24" />
+      <Setter Property="Cursor" Value="Hand" />
+      <Setter Property="Template">
+        <Setter.Value>
+          <ControlTemplate TargetType="CheckBox">
+            <Border x:Name="Box"
+                    Width="22"
+                    Height="22"
+                    CornerRadius="6"
+                    BorderThickness="2"
+                    BorderBrush="#56616B"
+                    Background="#121619">
+              <Path x:Name="Check"
+                    Visibility="Collapsed"
+                    Stroke="{StaticResource AccentBrush}"
+                    StrokeThickness="2.5"
+                    StrokeStartLineCap="Round"
+                    StrokeEndLineCap="Round"
+                    Data="M 5,11 L 9,15 L 17,7" />
+            </Border>
+            <ControlTemplate.Triggers>
+              <Trigger Property="IsChecked" Value="True">
+                <Setter TargetName="Box" Property="BorderBrush" Value="{StaticResource AccentBrush}" />
+                <Setter TargetName="Check" Property="Visibility" Value="Visible" />
+              </Trigger>
+              <Trigger Property="IsEnabled" Value="False">
+                <Setter TargetName="Box" Property="Opacity" Value="0.55" />
+              </Trigger>
+            </ControlTemplate.Triggers>
+          </ControlTemplate>
+        </Setter.Value>
+      </Setter>
+    </Style>
+  </Application.Resources>
+</Application>
+

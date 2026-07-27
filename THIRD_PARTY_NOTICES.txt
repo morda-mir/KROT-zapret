@@ -1,0 +1,44 @@
+KROT zapret — уведомления о сторонних компонентах
+================================================
+
+Zapret / Zapret 2
+-----------------
+Официальный проект: https://github.com/bol-van/zapret
+Zapret 2: https://github.com/bol-van/zapret2
+Автор: bol-van
+Лицензия: MIT
+
+В репозитории находятся неизменённые x64-компоненты официальных выпусков:
+- zapret2 v1.0.3;
+- zapret2 v1.0.2;
+- zapret v72.13.
+
+Текст лицензии: third_party/licenses/Zapret-MIT.txt
+
+WinDivert
+---------
+Официальный проект: https://github.com/basil00/WinDivert
+Автор: Basil
+Лицензия по выбору пользователя: LGPL-3.0 или GPL-2.0.
+
+KROT использует WinDivert как отдельный динамически подключаемый компонент и
+распространяет его на условиях LGPL-3.0. Исходный код WinDivert и инструкции
+по сборке доступны в официальном проекте.
+
+Полный текст лицензий: third_party/licenses/WinDivert-LICENSE.txt
+
+CommunityToolkit.Mvvm
+---------------------
+Официальный проект: https://github.com/CommunityToolkit/dotnet
+Лицензия: MIT
+
+Newtonsoft.Json
+---------------
+Официальный проект: https://github.com/JamesNK/Newtonsoft.Json
+Лицензия: MIT
+
+xUnit.net
+---------
+Официальный проект: https://github.com/xunit/xunit
+Лицензия: Apache-2.0
+

@@ -1,0 +1,225 @@
+<Window x:Class="KROT.App.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="clr-namespace:KROT.App.ViewModels"
+        Title="{Binding Title}"
+        Width="460"
+        Height="680"
+        ResizeMode="NoResize"
+        WindowStyle="None"
+        Background="Transparent"
+        AllowsTransparency="True"
+        ShowInTaskbar="False"
+        WindowStartupLocation="CenterScreen">
+  <Border Background="{StaticResource WindowBrush}"
+          BorderBrush="#303840"
+          BorderThickness="1"
+          CornerRadius="18">
+    <Grid>
+      <Grid.RowDefinitions>
+        <RowDefinition Height="60" />
+        <RowDefinition Height="*" />
+        <RowDefinition Height="96" />
+      </Grid.RowDefinitions>
+
+      <Grid Grid.Row="0" Background="Transparent" MouseLeftButtonDown="TitleBar_OnMouseLeftButtonDown">
+        <Grid.ColumnDefinitions>
+          <ColumnDefinition Width="*" />
+          <ColumnDefinition Width="Auto" />
+        </Grid.ColumnDefinitions>
+        <StackPanel Margin="22,14,0,0">
+          <TextBlock Text="{Binding Title}"
+                     Foreground="{StaticResource TextBrush}"
+                     FontWeight="SemiBold"
+                     FontSize="22" />
+          <TextBlock Text="{Binding SubtitleText}"
+                     Foreground="{StaticResource MutedTextBrush}"
+                     FontSize="11" />
+        </StackPanel>
+        <StackPanel Grid.Column="1" Orientation="Horizontal" Margin="0,10,10,0" VerticalAlignment="Top">
+          <Button Content="?" Width="38" Height="34" Padding="0" Command="{Binding ToggleHelpCommand}" />
+          <Button Content="—" Width="38" Height="34" Padding="0" Margin="4,0,0,0" Click="Minimize_OnClick" />
+          <Button Content="×" Width="38" Height="34" Padding="0" Margin="4,0,0,0" Click="Close_OnClick" />
+        </StackPanel>
+      </Grid>
+
+      <Grid Grid.Row="1" Margin="22,4,22,12">
+        <Grid.RowDefinitions>
+          <RowDefinition Height="92" />
+          <RowDefinition Height="Auto" />
+          <RowDefinition Height="*" />
+          <RowDefinition Height="74" />
+        </Grid.RowDefinitions>
+
+        <Grid Grid.Row="0">
+          <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="*" />
+            <ColumnDefinition Width="Auto" />
+          </Grid.ColumnDefinitions>
+          <Viewbox Width="104" Height="76" HorizontalAlignment="Left" VerticalAlignment="Center">
+            <Canvas Width="160" Height="120">
+              <Ellipse Canvas.Left="10" Canvas.Top="80" Width="140" Height="30" Fill="#0C0F11" />
+              <Ellipse Canvas.Left="45" Canvas.Top="20" Width="72" Height="78" Fill="#66717A" />
+              <Ellipse Canvas.Left="38" Canvas.Top="15" Width="25" Height="31" Fill="#59636C" />
+              <Ellipse Canvas.Left="101" Canvas.Top="15" Width="25" Height="31" Fill="#59636C" />
+              <Ellipse Canvas.Left="61" Canvas.Top="45" Width="9" Height="9" Fill="#111519" />
+              <Ellipse Canvas.Left="94" Canvas.Top="45" Width="9" Height="9" Fill="#111519" />
+              <Ellipse Canvas.Left="78" Canvas.Top="58" Width="12" Height="9" Fill="#D9A497" />
+              <Path Data="M72,72 C80,78 88,78 96,72" Stroke="#252B30" StrokeThickness="3" Fill="Transparent" />
+              <Ellipse Canvas.Left="116" Canvas.Top="73" Width="26" Height="10"
+                       Fill="{Binding AppState, Converter={StaticResource StateBrush}}" />
+            </Canvas>
+          </Viewbox>
+
+          <StackPanel Grid.Column="1" VerticalAlignment="Center" HorizontalAlignment="Right">
+            <TextBlock Text="{Binding AutoStartText}"
+                       Foreground="{StaticResource MutedTextBrush}"
+                       FontSize="12"
+                       HorizontalAlignment="Right" />
+            <CheckBox Style="{StaticResource ServiceCheckBox}"
+                      IsChecked="{Binding AutoStart}"
+                      HorizontalAlignment="Right"
+                      Margin="0,8,0,0"
+                      AutomationProperties.Name="{Binding AutoStartText}" />
+          </StackPanel>
+        </Grid>
+
+        <ItemsControl Grid.Row="1" ItemsSource="{Binding Services}">
+          <ItemsControl.ItemTemplate>
+            <DataTemplate DataType="{x:Type vm:ServiceItemViewModel}">
+              <Border Background="{StaticResource PanelBrush}"
+                      CornerRadius="12"
+                      Height="60"
+                      Margin="0,0,0,6"
+                      ToolTip="{Binding Tooltip}">
+                <Grid Margin="14,0">
+                  <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="54" />
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="40" />
+                  </Grid.ColumnDefinitions>
+
+                  <Border Width="42" Height="42" CornerRadius="12" Background="#111519">
+                    <TextBlock Text="{Binding IconGlyph}"
+                               Foreground="{StaticResource TextBrush}"
+                               FontSize="16"
+                               FontWeight="Bold"
+                               HorizontalAlignment="Center"
+                               VerticalAlignment="Center" />
+                  </Border>
+
+                  <ItemsControl Grid.Column="1" ItemsSource="{Binding Channels}" VerticalAlignment="Center">
+                    <ItemsControl.ItemsPanel>
+                      <ItemsPanelTemplate>
+                        <StackPanel Orientation="Horizontal" />
+                      </ItemsPanelTemplate>
+                    </ItemsControl.ItemsPanel>
+                    <ItemsControl.ItemTemplate>
+                      <DataTemplate>
+                        <Grid Width="44" Height="42" ToolTip="{Binding Tooltip}">
+                          <Ellipse Width="30"
+                                   Height="30"
+                                   Fill="{Binding State, Converter={StaticResource StateBrush}}"
+                                   Opacity="0.18" />
+                          <TextBlock Text="{Binding Symbol}"
+                                     Foreground="{Binding State, Converter={StaticResource StateBrush}}"
+                                     HorizontalAlignment="Center"
+                                     VerticalAlignment="Center"
+                                     FontWeight="SemiBold" />
+                        </Grid>
+                      </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                  </ItemsControl>
+
+                  <CheckBox Grid.Column="2"
+                            Style="{StaticResource ServiceCheckBox}"
+                            IsChecked="{Binding IsSelected}"
+                            IsEnabled="{Binding CanEdit}"
+                            HorizontalAlignment="Right"
+                            VerticalAlignment="Center"
+                            AutomationProperties.Name="{Binding Tooltip}" />
+                </Grid>
+              </Border>
+            </DataTemplate>
+          </ItemsControl.ItemTemplate>
+        </ItemsControl>
+
+        <Border Grid.Row="2" Background="#101417" CornerRadius="10" Padding="12,8" Margin="0,4,0,8">
+          <ItemsControl ItemsSource="{Binding Journal}">
+            <ItemsControl.ItemTemplate>
+              <DataTemplate>
+                <TextBlock Text="{Binding}"
+                           Foreground="{StaticResource MutedTextBrush}"
+                           FontSize="11"
+                           Margin="0,2"
+                           TextTrimming="CharacterEllipsis" />
+              </DataTemplate>
+            </ItemsControl.ItemTemplate>
+          </ItemsControl>
+        </Border>
+
+        <StackPanel Grid.Row="3" HorizontalAlignment="Center" VerticalAlignment="Center">
+          <TextBlock Text="{Binding StatusText}"
+                     Foreground="{StaticResource MutedTextBrush}"
+                     FontSize="12"
+                     HorizontalAlignment="Center"
+                     Margin="0,0,0,8" />
+          <Button Width="190"
+                  Height="46"
+                  FontSize="15"
+                  FontWeight="SemiBold"
+                  Background="#285E48"
+                  Content="{Binding PrimaryActionText}"
+                  Command="{Binding ToggleRuntimeCommand}" />
+        </StackPanel>
+      </Grid>
+
+      <Border Grid.Row="2" Background="#111519" CornerRadius="0,0,18,18" Padding="22,14">
+          <TextBlock Text="{Binding FooterText}"
+                   Foreground="{StaticResource MutedTextBrush}"
+                   FontSize="11"
+                   TextWrapping="Wrap"
+                   VerticalAlignment="Center" />
+      </Border>
+
+      <Border Grid.RowSpan="3"
+              Width="310"
+              HorizontalAlignment="Right"
+              VerticalAlignment="Top"
+              Margin="0,54,14,0"
+              Padding="16"
+              CornerRadius="14"
+              Background="#242B31"
+              BorderBrush="#364049"
+              BorderThickness="1"
+              Panel.ZIndex="10"
+              Visibility="{Binding IsHelpOpen, Converter={StaticResource BoolToVisibility}}">
+        <StackPanel>
+          <TextBlock Text="{Binding VersionText}" Foreground="{StaticResource TextBrush}" FontWeight="SemiBold" />
+          <Separator Margin="0,12" Background="#46515B" />
+          <TextBlock Text="{Binding LanguageText}" Foreground="{StaticResource MutedTextBrush}" Margin="0,0,0,6" />
+          <StackPanel Orientation="Horizontal">
+            <Button Content="RU" Width="58" Command="{Binding SetRussianCommand}" />
+            <Button Content="EN" Width="58" Margin="6,0,0,0" Command="{Binding SetEnglishCommand}" />
+            <TextBlock Text="{Binding CurrentLanguage}"
+                       Foreground="{StaticResource AccentBrush}"
+                       VerticalAlignment="Center"
+                       Margin="12,0,0,0" />
+          </StackPanel>
+          <CheckBox Content="{Binding LogsText}"
+                    Foreground="{StaticResource TextBrush}"
+                    IsChecked="{Binding DetailedLogs}"
+                    Margin="0,14,0,8" />
+          <Button Content="{Binding ViewLogsText}" Click="OpenLogs_OnClick" HorizontalContentAlignment="Left" />
+          <Button Content="{Binding SupportText}" Command="{Binding OpenSupportCommand}" Margin="0,6,0,0" HorizontalContentAlignment="Left" />
+          <Button Content="{Binding ZapretText}" Command="{Binding OpenZapretCommand}" Margin="0,6,0,0" HorizontalContentAlignment="Left" />
+          <TextBlock Text="{Binding LicensesText}" Foreground="{StaticResource MutedTextBrush}" Margin="2,14,0,0" />
+          <TextBlock Text="Zapret · MIT    WinDivert · LGPL-3.0/GPL-2.0"
+                     Foreground="{StaticResource MutedTextBrush}"
+                     FontSize="10"
+                     Margin="2,4,0,0" />
+        </StackPanel>
+      </Border>
+    </Grid>
+  </Border>
+</Window>

@@ -1,0 +1,65 @@
+using System;
+using System.Collections.ObjectModel;
+using CommunityToolkit.Mvvm.ComponentModel;
+using KROT.Core.Models;
+
+namespace KROT.App.ViewModels;
+
+public sealed class ServiceItemViewModel : ObservableObject
+{
+    private bool _isSelected;
+    private bool _canEdit = true;
+    private string _tooltip = string.Empty;
+
+    public ServiceItemViewModel(
+        ServiceId id,
+        string iconGlyph,
+        bool isSelected,
+        Action<ServiceItemViewModel> selectionChanged,
+        params ChannelIndicatorViewModel[] channels)
+    {
+        Id = id;
+        IconGlyph = iconGlyph;
+        _isSelected = isSelected;
+        SelectionChanged = selectionChanged;
+        Channels = new ObservableCollection<ChannelIndicatorViewModel>(channels);
+    }
+
+    public ServiceId Id { get; }
+
+    public string IconGlyph { get; }
+
+    public ObservableCollection<ChannelIndicatorViewModel> Channels { get; }
+
+    public Action<ServiceItemViewModel> SelectionChanged { get; }
+
+    public bool IsSelected
+    {
+        get => _isSelected;
+        set
+        {
+            if (SetProperty(ref _isSelected, value))
+            {
+                SelectionChanged(this);
+            }
+        }
+    }
+
+    public bool CanEdit
+    {
+        get => _canEdit;
+        set => SetProperty(ref _canEdit, value);
+    }
+
+    public string Tooltip
+    {
+        get => _tooltip;
+        set => SetProperty(ref _tooltip, value);
+    }
+
+    public void RefreshChannels()
+    {
+        OnPropertyChanged(nameof(Channels));
+    }
+}
+

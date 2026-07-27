@@ -1,0 +1,76 @@
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.0.31903.59
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "KROT.App", "src\KROT.App\KROT.App.csproj", "{A71B6C4E-ED9D-459A-8B56-1BB0CE526101}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "KROT.Service", "src\KROT.Service\KROT.Service.csproj", "{A71B6C4E-ED9D-459A-8B56-1BB0CE526102}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "KROT.Core", "src\KROT.Core\KROT.Core.csproj", "{A71B6C4E-ED9D-459A-8B56-1BB0CE526103}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "KROT.Infrastructure", "src\KROT.Infrastructure\KROT.Infrastructure.csproj", "{A71B6C4E-ED9D-459A-8B56-1BB0CE526104}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "KROT.Diagnostics", "src\KROT.Diagnostics\KROT.Diagnostics.csproj", "{A71B6C4E-ED9D-459A-8B56-1BB0CE526105}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "KROT.Zapret", "src\KROT.Zapret\KROT.Zapret.csproj", "{A71B6C4E-ED9D-459A-8B56-1BB0CE526106}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "KROT.Localization", "src\KROT.Localization\KROT.Localization.csproj", "{A71B6C4E-ED9D-459A-8B56-1BB0CE526107}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "KROT.Core.Tests", "tests\KROT.Core.Tests\KROT.Core.Tests.csproj", "{A71B6C4E-ED9D-459A-8B56-1BB0CE526108}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "KROT.Infrastructure.Tests", "tests\KROT.Infrastructure.Tests\KROT.Infrastructure.Tests.csproj", "{A71B6C4E-ED9D-459A-8B56-1BB0CE526109}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "KROT.Zapret.Tests", "tests\KROT.Zapret.Tests\KROT.Zapret.Tests.csproj", "{A71B6C4E-ED9D-459A-8B56-1BB0CE526110}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|x64 = Debug|x64
+		Release|x64 = Release|x64
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{A71B6C4E-ED9D-459A-8B56-1BB0CE526101}.Debug|x64.ActiveCfg = Debug|x64
+		{A71B6C4E-ED9D-459A-8B56-1BB0CE526101}.Debug|x64.Build.0 = Debug|x64
+		{A71B6C4E-ED9D-459A-8B56-1BB0CE526101}.Release|x64.ActiveCfg = Release|x64
+		{A71B6C4E-ED9D-459A-8B56-1BB0CE526101}.Release|x64.Build.0 = Release|x64
+		{A71B6C4E-ED9D-459A-8B56-1BB0CE526102}.Debug|x64.ActiveCfg = Debug|x64
+		{A71B6C4E-ED9D-459A-8B56-1BB0CE526102}.Debug|x64.Build.0 = Debug|x64
+		{A71B6C4E-ED9D-459A-8B56-1BB0CE526102}.Release|x64.ActiveCfg = Release|x64
+		{A71B6C4E-ED9D-459A-8B56-1BB0CE526102}.Release|x64.Build.0 = Release|x64
+		{A71B6C4E-ED9D-459A-8B56-1BB0CE526103}.Debug|x64.ActiveCfg = Debug|x64
+		{A71B6C4E-ED9D-459A-8B56-1BB0CE526103}.Debug|x64.Build.0 = Debug|x64
+		{A71B6C4E-ED9D-459A-8B56-1BB0CE526103}.Release|x64.ActiveCfg = Release|x64
+		{A71B6C4E-ED9D-459A-8B56-1BB0CE526103}.Release|x64.Build.0 = Release|x64
+		{A71B6C4E-ED9D-459A-8B56-1BB0CE526104}.Debug|x64.ActiveCfg = Debug|x64
+		{A71B6C4E-ED9D-459A-8B56-1BB0CE526104}.Debug|x64.Build.0 = Debug|x64
+		{A71B6C4E-ED9D-459A-8B56-1BB0CE526104}.Release|x64.ActiveCfg = Release|x64
+		{A71B6C4E-ED9D-459A-8B56-1BB0CE526104}.Release|x64.Build.0 = Release|x64
+		{A71B6C4E-ED9D-459A-8B56-1BB0CE526105}.Debug|x64.ActiveCfg = Debug|x64
+		{A71B6C4E-ED9D-459A-8B56-1BB0CE526105}.Debug|x64.Build.0 = Debug|x64
+		{A71B6C4E-ED9D-459A-8B56-1BB0CE526105}.Release|x64.ActiveCfg = Release|x64
+		{A71B6C4E-ED9D-459A-8B56-1BB0CE526105}.Release|x64.Build.0 = Release|x64
+		{A71B6C4E-ED9D-459A-8B56-1BB0CE526106}.Debug|x64.ActiveCfg = Debug|x64
+		{A71B6C4E-ED9D-459A-8B56-1BB0CE526106}.Debug|x64.Build.0 = Debug|x64
+		{A71B6C4E-ED9D-459A-8B56-1BB0CE526106}.Release|x64.ActiveCfg = Release|x64
+		{A71B6C4E-ED9D-459A-8B56-1BB0CE526106}.Release|x64.Build.0 = Release|x64
+		{A71B6C4E-ED9D-459A-8B56-1BB0CE526107}.Debug|x64.ActiveCfg = Debug|x64
+		{A71B6C4E-ED9D-459A-8B56-1BB0CE526107}.Debug|x64.Build.0 = Debug|x64
+		{A71B6C4E-ED9D-459A-8B56-1BB0CE526107}.Release|x64.ActiveCfg = Release|x64
+		{A71B6C4E-ED9D-459A-8B56-1BB0CE526107}.Release|x64.Build.0 = Release|x64
+		{A71B6C4E-ED9D-459A-8B56-1BB0CE526108}.Debug|x64.ActiveCfg = Debug|x64
+		{A71B6C4E-ED9D-459A-8B56-1BB0CE526108}.Debug|x64.Build.0 = Debug|x64
+		{A71B6C4E-ED9D-459A-8B56-1BB0CE526108}.Release|x64.ActiveCfg = Release|x64
+		{A71B6C4E-ED9D-459A-8B56-1BB0CE526108}.Release|x64.Build.0 = Release|x64
+		{A71B6C4E-ED9D-459A-8B56-1BB0CE526109}.Debug|x64.ActiveCfg = Debug|x64
+		{A71B6C4E-ED9D-459A-8B56-1BB0CE526109}.Debug|x64.Build.0 = Debug|x64
+		{A71B6C4E-ED9D-459A-8B56-1BB0CE526109}.Release|x64.ActiveCfg = Release|x64
+		{A71B6C4E-ED9D-459A-8B56-1BB0CE526109}.Release|x64.Build.0 = Release|x64
+		{A71B6C4E-ED9D-459A-8B56-1BB0CE526110}.Debug|x64.ActiveCfg = Debug|x64
+		{A71B6C4E-ED9D-459A-8B56-1BB0CE526110}.Debug|x64.Build.0 = Debug|x64
+		{A71B6C4E-ED9D-459A-8B56-1BB0CE526110}.Release|x64.ActiveCfg = Release|x64
+		{A71B6C4E-ED9D-459A-8B56-1BB0CE526110}.Release|x64.Build.0 = Release|x64
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+EndGlobal
+

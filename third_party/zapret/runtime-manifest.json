@@ -1,0 +1,73 @@
+{
+  "schemaVersion": 1,
+  "activeZapret2": "zapret2-v1.0.3",
+  "previousZapret2": "zapret2-v1.0.2",
+  "legacyZapret1": "zapret1-v72.13",
+  "fakeRuntimeOnly": true,
+  "files": [
+    {
+      "runtimeId": "zapret2-v1.0.3",
+      "relativePath": "zapret2-v1.0.3/winws2.exe",
+      "version": "v1.0.3",
+      "sha256": "31d3188d63757d89a22a16ee397f9bffae5e6150e86f00160ab9c50d3a107d4d",
+      "sourceUrl": "https://github.com/bol-van/zapret2/releases/download/v1.0.3/zapret2-v1.0.3.zip"
+    },
+    {
+      "runtimeId": "zapret2-v1.0.3",
+      "relativePath": "zapret2-v1.0.3/WinDivert.dll",
+      "version": "v1.0.3",
+      "sha256": "06c3f201b815a5798816e8c15b925b28f3c38e5aba31efedec10af9e598ce723",
+      "sourceUrl": "https://github.com/bol-van/zapret2/releases/download/v1.0.3/zapret2-v1.0.3.zip"
+    },
+    {
+      "runtimeId": "zapret2-v1.0.3",
+      "relativePath": "zapret2-v1.0.3/WinDivert64.sys",
+      "version": "v1.0.3",
+      "sha256": "8da085332782708d8767bcace5327a6ec7283c17cfb85e40b03cd2323a90ddc2",
+      "sourceUrl": "https://github.com/bol-van/zapret2/releases/download/v1.0.3/zapret2-v1.0.3.zip"
+    },
+    {
+      "runtimeId": "zapret2-v1.0.2",
+      "relativePath": "zapret2-v1.0.2/winws2.exe",
+      "version": "v1.0.2",
+      "sha256": "2bd9661d857794db6591510a92607da1d74e6da018887f19e832df68a9679275",
+      "sourceUrl": "https://github.com/bol-van/zapret2/releases/download/v1.0.2/zapret2-v1.0.2.zip"
+    },
+    {
+      "runtimeId": "zapret2-v1.0.2",
+      "relativePath": "zapret2-v1.0.2/WinDivert.dll",
+      "version": "v1.0.2",
+      "sha256": "06c3f201b815a5798816e8c15b925b28f3c38e5aba31efedec10af9e598ce723",
+      "sourceUrl": "https://github.com/bol-van/zapret2/releases/download/v1.0.2/zapret2-v1.0.2.zip"
+    },
+    {
+      "runtimeId": "zapret2-v1.0.2",
+      "relativePath": "zapret2-v1.0.2/WinDivert64.sys",
+      "version": "v1.0.2",
+      "sha256": "8da085332782708d8767bcace5327a6ec7283c17cfb85e40b03cd2323a90ddc2",
+      "sourceUrl": "https://github.com/bol-van/zapret2/releases/download/v1.0.2/zapret2-v1.0.2.zip"
+    },
+    {
+      "runtimeId": "zapret1-v72.13",
+      "relativePath": "zapret1-v72.13/winws.exe",
+      "version": "v72.13",
+      "sha256": "a14bff1df6234ea555d2e0c61b589f0707c0b12d6c9b7eeccda76012154996e8",
+      "sourceUrl": "https://github.com/bol-van/zapret/releases/download/v72.13/zapret-v72.13.zip"
+    },
+    {
+      "runtimeId": "zapret1-v72.13",
+      "relativePath": "zapret1-v72.13/WinDivert.dll",
+      "version": "v72.13",
+      "sha256": "c1e060ee19444a259b2162f8af0f3fe8c4428a1c6f694dce20de194ac8d7d9a2",
+      "sourceUrl": "https://github.com/bol-van/zapret/releases/download/v72.13/zapret-v72.13.zip"
+    },
+    {
+      "runtimeId": "zapret1-v72.13",
+      "relativePath": "zapret1-v72.13/WinDivert64.sys",
+      "version": "v72.13",
+      "sha256": "8da085332782708d8767bcace5327a6ec7283c17cfb85e40b03cd2323a90ddc2",
+      "sourceUrl": "https://github.com/bol-van/zapret/releases/download/v72.13/zapret-v72.13.zip"
+    }
+  ]
+}
+
