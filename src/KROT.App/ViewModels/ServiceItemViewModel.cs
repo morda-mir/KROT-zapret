@@ -9,7 +9,6 @@ public sealed class ServiceItemViewModel : ObservableObject
 {
     private bool _isSelected;
     private bool _canEdit = true;
-    private string _tooltip = string.Empty;
 
     public ServiceItemViewModel(
         ServiceId id,
@@ -53,12 +52,6 @@ public sealed class ServiceItemViewModel : ObservableObject
     {
         get => _canEdit;
         set => SetProperty(ref _canEdit, value);
-    }
-
-    public string Tooltip
-    {
-        get => _tooltip;
-        set => SetProperty(ref _tooltip, value);
     }
 
     public void RefreshChannels()

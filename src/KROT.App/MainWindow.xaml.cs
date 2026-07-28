@@ -91,6 +91,19 @@ public partial class MainWindow
 
     private void Close_OnClick(object sender, RoutedEventArgs e) => Close();
 
+    protected override void OnStateChanged(EventArgs e)
+    {
+        base.OnStateChanged(e);
+
+        if (WindowState != WindowState.Minimized)
+        {
+            return;
+        }
+
+        ShowInTaskbar = false;
+        Hide();
+    }
+
     private void OpenLogs_OnClick(object sender, RoutedEventArgs e) => _viewModel.OpenLogs();
 
     private void OnRequestOpenLogs(object? sender, EventArgs e)
@@ -101,6 +114,7 @@ public partial class MainWindow
 
     private void RestoreFromTray()
     {
+        ShowInTaskbar = true;
         Show();
         WindowState = WindowState.Normal;
         Activate();

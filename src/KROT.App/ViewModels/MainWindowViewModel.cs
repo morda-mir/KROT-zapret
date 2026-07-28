@@ -435,7 +435,6 @@ public sealed class MainWindowViewModel : ObservableObject, IDisposable
     {
         foreach (var service in Services)
         {
-            service.Tooltip = _localization.Get($"Service.{service.Id}");
             foreach (var channel in service.Channels)
             {
                 RefreshChannelTooltip(channel);
@@ -461,9 +460,7 @@ public sealed class MainWindowViewModel : ObservableObject, IDisposable
 
     private void RefreshChannelTooltip(ChannelIndicatorViewModel channel)
     {
-        var label = _localization.Get(channel.TooltipKey);
-        var state = _localization.Get($"ChannelState.{channel.State}");
-        channel.Tooltip = $"{label} — {state}";
+        channel.Tooltip = _localization.Get(channel.TooltipKey);
     }
 
     private void OpenUrl(string url)
