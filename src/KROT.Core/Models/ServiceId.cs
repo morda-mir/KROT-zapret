@@ -3,6 +3,5 @@ namespace KROT.Core.Models;
 public enum ServiceId
 {
     Discord = 0,
-    YouTube = 1,
-    AiServices = 3
+    YouTube = 1
 }

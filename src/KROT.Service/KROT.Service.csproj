@@ -6,11 +6,13 @@
   </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="..\KROT.Core\KROT.Core.csproj" />
+    <ProjectReference Include="..\KROT.Diagnostics\KROT.Diagnostics.csproj" />
     <ProjectReference Include="..\KROT.Infrastructure\KROT.Infrastructure.csproj" />
     <ProjectReference Include="..\KROT.Zapret\KROT.Zapret.csproj" />
   </ItemGroup>
   <ItemGroup>
     <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
+    <Reference Include="System.Net.Http" />
     <Reference Include="System.ServiceProcess" />
   </ItemGroup>
   <ItemGroup>

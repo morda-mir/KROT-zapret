@@ -6,6 +6,7 @@
     <AssemblyName>KROT</AssemblyName>
     <RootNamespace>KROT.App</RootNamespace>
     <ApplicationManifest>app.manifest</ApplicationManifest>
+    <ApplicationIcon>..\..\assets\tray\krot-tray-off.ico</ApplicationIcon>
   </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="..\KROT.Core\KROT.Core.csproj" />
@@ -21,4 +22,3 @@
     <Content Include="..\..\THIRD_PARTY_NOTICES.txt" Link="THIRD_PARTY_NOTICES.txt" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 </Project>
-

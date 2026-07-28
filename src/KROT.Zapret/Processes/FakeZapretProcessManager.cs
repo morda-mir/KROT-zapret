@@ -21,6 +21,25 @@ public sealed class FakeZapretProcessManager : IZapretProcessManager
     public Task StartVoiceAsync(IReadOnlyList<string> arguments, CancellationToken cancellationToken) =>
         StartAsync("voice", cancellationToken);
 
+    public async Task RestartMainAsync(
+        IReadOnlyList<string> arguments,
+        CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        _owned.RemoveAll(x => string.Equals(x.Role, "main", StringComparison.OrdinalIgnoreCase));
+        await StartMainAsync(arguments, cancellationToken).ConfigureAwait(false);
+    }
+
+    public Task StopMainAsync(CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        _owned.RemoveAll(x => string.Equals(
+            x.Role,
+            "main",
+            StringComparison.OrdinalIgnoreCase));
+        return Task.CompletedTask;
+    }
+
     public async Task RestartVoiceAsync(IReadOnlyList<string> arguments, CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
@@ -54,4 +73,3 @@ public sealed class FakeZapretProcessManager : IZapretProcessManager
         return Task.CompletedTask;
     }
 }
-

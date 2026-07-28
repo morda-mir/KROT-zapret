@@ -7,8 +7,11 @@ public sealed class ChannelIndicatorViewModel : ObservableObject
 {
     private ChannelState _state = ChannelState.Unknown;
     private string _tooltip = string.Empty;
+    private string _strategyId = string.Empty;
 
-    public string Symbol { get; set; } = "•";
+    public string Id { get; set; } = string.Empty;
+
+    public string GeometryData { get; set; } = string.Empty;
 
     public string Tooltip
     {
@@ -17,6 +20,12 @@ public sealed class ChannelIndicatorViewModel : ObservableObject
     }
 
     public string TooltipKey { get; set; } = string.Empty;
+
+    public string StrategyId
+    {
+        get => _strategyId;
+        set => SetProperty(ref _strategyId, value);
+    }
 
     public ChannelState State
     {

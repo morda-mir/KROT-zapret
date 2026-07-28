@@ -13,7 +13,10 @@ using Newtonsoft.Json;
 
 namespace KROT.Zapret.Processes;
 
-public sealed class RealZapretProcessManager : IZapretProcessManager, IDisposable
+public sealed class RealZapretProcessManager :
+    IZapretProcessManager,
+    IRuntimeOutputSource,
+    IDisposable
 {
     private readonly object _sync = new();
     private readonly List<RuntimeProcessRecord> _owned = new();
@@ -28,6 +31,8 @@ public sealed class RealZapretProcessManager : IZapretProcessManager, IDisposabl
         _runtimeRoot = Path.GetFullPath(runtimeRoot);
         _log = log;
     }
+
+    public event EventHandler<RuntimeOutputEvent>? RuntimeOutput;
 
     public IReadOnlyCollection<RuntimeProcessRecord> OwnedProcesses
     {
@@ -49,6 +54,17 @@ public sealed class RealZapretProcessManager : IZapretProcessManager, IDisposabl
         IReadOnlyList<string> arguments,
         CancellationToken cancellationToken) =>
         StartAsync("voice", arguments, RuntimeKind.Zapret2, cancellationToken);
+
+    public async Task RestartMainAsync(
+        IReadOnlyList<string> arguments,
+        CancellationToken cancellationToken)
+    {
+        await StopRoleAsync("main", cancellationToken).ConfigureAwait(false);
+        await StartMainAsync(arguments, cancellationToken).ConfigureAwait(false);
+    }
+
+    public Task StopMainAsync(CancellationToken cancellationToken) =>
+        StopRoleAsync("main", cancellationToken);
 
     public async Task RestartVoiceAsync(
         IReadOnlyList<string> arguments,
@@ -141,6 +157,14 @@ public sealed class RealZapretProcessManager : IZapretProcessManager, IDisposabl
                 if (!string.IsNullOrWhiteSpace(eventArgs.Data))
                 {
                     _log.Info($"winws.{role}.stdout", eventArgs.Data);
+                    RuntimeOutput?.Invoke(
+                        this,
+                        new RuntimeOutputEvent
+                        {
+                            Role = role,
+                            Line = eventArgs.Data,
+                            IsError = false
+                        });
                 }
             };
             process.ErrorDataReceived += (_, eventArgs) =>
@@ -148,6 +172,14 @@ public sealed class RealZapretProcessManager : IZapretProcessManager, IDisposabl
                 if (!string.IsNullOrWhiteSpace(eventArgs.Data))
                 {
                     _log.Error($"winws.{role}.stderr", eventArgs.Data);
+                    RuntimeOutput?.Invoke(
+                        this,
+                        new RuntimeOutputEvent
+                        {
+                            Role = role,
+                            Line = eventArgs.Data,
+                            IsError = true
+                        });
                 }
             };
             process.BeginOutputReadLine();
@@ -303,6 +335,8 @@ public sealed class RealZapretProcessManager : IZapretProcessManager, IDisposabl
         {
             RequireFile(Path.Combine(Path.GetDirectoryName(executablePath)!, "lua", "zapret-lib.lua"));
             RequireFile(Path.Combine(Path.GetDirectoryName(executablePath)!, "lua", "zapret-antidpi.lua"));
+            RequireFile(Path.Combine(Path.GetDirectoryName(executablePath)!, "lua", "zapret-auto.lua"));
+            RequireFile(Path.Combine(Path.GetDirectoryName(executablePath)!, "lua", "krot-auto.lua"));
         }
         var cygwinPath = sharedFiles
             .Where(x => x.RelativePath.EndsWith("cygwin1.dll", StringComparison.OrdinalIgnoreCase))

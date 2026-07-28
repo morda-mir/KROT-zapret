@@ -1,0 +1,3 @@
+inbound and ip and
+udp.PayloadLength=74 and
+udp.Payload32[0]=0x00020046

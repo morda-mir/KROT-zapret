@@ -4,7 +4,9 @@ namespace KROT.Core.Models;
 
 public sealed class KrotSettings
 {
-    public int SchemaVersion { get; set; } = 1;
+    public const int CurrentSchemaVersion = 2;
+
+    public int SchemaVersion { get; set; } = CurrentSchemaVersion;
 
     public string Language { get; set; } = "ru";
 
@@ -17,7 +19,6 @@ public sealed class KrotSettings
     public List<ServiceSelection> Services { get; set; } = new()
     {
         new ServiceSelection { Id = ServiceId.Discord, IsEnabled = true },
-        new ServiceSelection { Id = ServiceId.YouTube, IsEnabled = true },
-        new ServiceSelection { Id = ServiceId.AiServices, IsEnabled = false }
+        new ServiceSelection { Id = ServiceId.YouTube, IsEnabled = true }
     };
 }

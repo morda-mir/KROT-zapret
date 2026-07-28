@@ -5,6 +5,7 @@ using System.Diagnostics;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using System.Windows;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using KROT.App.Services;
@@ -16,7 +17,7 @@ namespace KROT.App.ViewModels;
 
 public sealed class MainWindowViewModel : ObservableObject, IDisposable
 {
-    public const string DiscordSupportUrl = "DISCORD_SUPPORT_URL";
+    public const string ProjectRepositoryUrl = "https://github.com/morda-mir/KROT-zapret";
     public const string ZapretOfficialUrl = "https://github.com/bol-van/zapret";
 
     private readonly KrotSettings _settings;
@@ -27,10 +28,11 @@ public sealed class MainWindowViewModel : ObservableObject, IDisposable
     private readonly ILogService _log;
     private readonly CancellationTokenSource _lifetime = new();
     private AppState _appState = AppState.Off;
-    private string _statusText = string.Empty;
     private bool _isHelpOpen;
     private bool _autoStart;
     private bool _detailedLogs;
+    private readonly Task _statusPollingTask;
+    private ServiceSnapshot _lastSnapshot = new();
 
     public MainWindowViewModel(
         KrotSettings settings,
@@ -50,27 +52,23 @@ public sealed class MainWindowViewModel : ObservableObject, IDisposable
         _detailedLogs = settings.DetailedLogs;
 
         Services = CreateServices(settings);
-        Journal = new ObservableCollection<string>();
         ToggleRuntimeCommand = new AsyncRelayCommand(ToggleRuntimeAsync, () => !IsBusy);
         ToggleHelpCommand = new RelayCommand(() => IsHelpOpen = !IsHelpOpen);
         SetRussianCommand = new RelayCommand(() => SetLanguage("ru"));
         SetEnglishCommand = new RelayCommand(() => SetLanguage("en"));
+        OpenProjectRepositoryCommand = new RelayCommand(() => OpenUrl(ProjectRepositoryUrl));
         OpenZapretCommand = new RelayCommand(() => OpenUrl(ZapretOfficialUrl));
-        OpenSupportCommand = new RelayCommand(
-            () => OpenUrl(DiscordSupportUrl),
-            () => Uri.TryCreate(DiscordSupportUrl, UriKind.Absolute, out _));
 
         _localization.LanguageChanged += OnLanguageChanged;
         _serviceClient.SnapshotChanged += OnSnapshotChanged;
         RefreshLocalization();
-        AddJournal("Journal.Ready");
+        UpdateChannelStates(new ServiceSnapshot { AppState = AppState.Off });
+        _statusPollingTask = PollServiceStatusAsync(_lifetime.Token);
     }
 
     public event EventHandler? RequestOpenLogs;
 
     public ObservableCollection<ServiceItemViewModel> Services { get; }
-
-    public ObservableCollection<string> Journal { get; }
 
     public IAsyncRelayCommand ToggleRuntimeCommand { get; }
 
@@ -80,20 +78,24 @@ public sealed class MainWindowViewModel : ObservableObject, IDisposable
 
     public IRelayCommand SetEnglishCommand { get; }
 
+    public IRelayCommand OpenProjectRepositoryCommand { get; }
+
     public IRelayCommand OpenZapretCommand { get; }
 
-    public IRelayCommand OpenSupportCommand { get; }
-
     public string Title => _localization.Get("App.Title");
-
-    public string SubtitleText => _localization.Get("App.Subtitle");
-
-    public string FooterText => _localization.Get("Footer.Runtime");
 
     public string AutoStartText => _localization.Get("AutoStart");
 
     public string PrimaryActionText =>
-        IsRunning ? _localization.Get("Action.Disable") : _localization.Get("Action.Enable");
+        AppState switch
+        {
+            AppState.Off or AppState.FatalError => _localization.Get("Action.Enable"),
+            AppState.Starting or
+            AppState.TestingDirect or
+            AppState.TestingSavedProfiles or
+            AppState.SearchingProfiles => _localization.Get("Action.Starting"),
+            _ => _localization.Get("Action.Disable")
+        };
 
     public string LanguageText => _localization.Get("Menu.Language");
 
@@ -101,19 +103,15 @@ public sealed class MainWindowViewModel : ObservableObject, IDisposable
 
     public string ViewLogsText => _localization.Get("Menu.ViewLogs");
 
-    public string SupportText => _localization.Get("Menu.Support");
+    public string AboutText => _localization.Get("Menu.About");
+
+    public string ProjectRepositoryText => _localization.Get("Menu.ProjectRepository");
 
     public string ZapretText => _localization.Get("Menu.Zapret");
 
     public string LicensesText => _localization.Get("Menu.Licenses");
 
     public string VersionText => _localization.Get("Menu.Version");
-
-    public string StatusText
-    {
-        get => _statusText;
-        private set => SetProperty(ref _statusText, value);
-    }
 
     public AppState AppState
     {
@@ -214,6 +212,7 @@ public sealed class MainWindowViewModel : ObservableObject, IDisposable
         _serviceClient.SnapshotChanged -= OnSnapshotChanged;
         _lifetime.Cancel();
         _lifetime.Dispose();
+        GC.KeepAlive(_statusPollingTask);
     }
 
     private async Task ToggleRuntimeAsync()
@@ -222,18 +221,20 @@ public sealed class MainWindowViewModel : ObservableObject, IDisposable
         {
             if (IsRunning || AppState == AppState.FatalError)
             {
+                AppState = AppState.Stopping;
+                UpdateChannelStates(new ServiceSnapshot { AppState = AppState.Stopping });
                 await _serviceClient.StopAsync(_lifetime.Token);
-                AddJournal("Journal.Disabled");
             }
             else
             {
+                AppState = AppState.Starting;
+                UpdateChannelStates(new ServiceSnapshot { AppState = AppState.Starting });
                 var options = new KrotStartOptions
                 {
                     Services = Services.Where(x => x.IsSelected).Select(x => x.Id).ToList(),
                     DetailedLogs = DetailedLogs
                 };
                 await _serviceClient.StartAsync(options, _lifetime.Token);
-                AddJournal("Journal.Enabled");
             }
         }
         catch (OperationCanceledException)
@@ -243,34 +244,36 @@ public sealed class MainWindowViewModel : ObservableObject, IDisposable
         catch (Exception ex)
         {
             AppState = AppState.FatalError;
-            StatusText = _localization.Get("Status.Error");
             _log.Error("runtime.command.failed", "Runtime command failed.", ex);
         }
     }
 
     private void OnSnapshotChanged(object? sender, ServiceSnapshot snapshot)
     {
-        AppState = snapshot.AppState;
-        StatusText = _localization.Get(snapshot.MessageKey);
-        UpdateChannelStates(snapshot.AppState);
+        var dispatcher = Application.Current?.Dispatcher;
+        if (dispatcher != null && !dispatcher.CheckAccess())
+        {
+            dispatcher.BeginInvoke(new Action(() => ApplySnapshot(snapshot)));
+            return;
+        }
 
-        if (snapshot.AppState == AppState.TestingDirect)
-        {
-            AddJournal("Journal.Direct");
-        }
-        else if (snapshot.AppState == AppState.TestingSavedProfiles)
-        {
-            AddJournal("Journal.Profiles");
-        }
+        ApplySnapshot(snapshot);
     }
 
-    private void UpdateChannelStates(AppState state)
+    private void ApplySnapshot(ServiceSnapshot snapshot)
     {
-        var channelState = state switch
+        _lastSnapshot = snapshot;
+        AppState = snapshot.AppState;
+        UpdateChannelStates(snapshot);
+    }
+
+    private void UpdateChannelStates(ServiceSnapshot snapshot)
+    {
+        var fallbackState = snapshot.AppState switch
         {
             AppState.Starting or AppState.TestingDirect => ChannelState.Testing,
             AppState.TestingSavedProfiles or AppState.SearchingProfiles => ChannelState.Searching,
-            AppState.Running => ChannelState.WorkingDirect,
+            AppState.Running => ChannelState.WaitingForActivity,
             AppState.FatalError or AppState.PartialFailure => ChannelState.Failed,
             _ => ChannelState.Unknown
         };
@@ -279,13 +282,59 @@ public sealed class MainWindowViewModel : ObservableObject, IDisposable
         {
             foreach (var channel in service.Channels)
             {
-                channel.State = service.IsSelected ? channelState : ChannelState.Disabled;
+                var status = snapshot.Channels.FirstOrDefault(item =>
+                    item.ServiceId == service.Id
+                    && string.Equals(
+                        item.ChannelId,
+                        channel.Id,
+                        StringComparison.Ordinal));
+                channel.State = !service.IsSelected
+                    ? ChannelState.Disabled
+                    : status?.State ?? fallbackState;
+                channel.StrategyId = status?.StrategyId ?? string.Empty;
+                RefreshChannelTooltip(channel);
             }
 
             service.RefreshChannels();
         }
 
         OnPropertyChanged(nameof(Services));
+    }
+
+    private async Task PollServiceStatusAsync(CancellationToken cancellationToken)
+    {
+        while (!cancellationToken.IsCancellationRequested)
+        {
+            try
+            {
+                if (IsBusy)
+                {
+                    await Task.Delay(TimeSpan.FromSeconds(1), cancellationToken);
+                    continue;
+                }
+
+                var snapshot = await _serviceClient
+                    .GetStatusAsync(cancellationToken);
+                OnSnapshotChanged(this, snapshot);
+            }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+            {
+                return;
+            }
+            catch (Exception)
+            {
+                // The Windows service can be briefly unavailable during a Debug rebuild.
+            }
+
+            try
+            {
+                await Task.Delay(TimeSpan.FromSeconds(3), cancellationToken);
+            }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+            {
+                return;
+            }
+        }
     }
 
     private ObservableCollection<ServiceItemViewModel> CreateServices(KrotSettings settings)
@@ -298,31 +347,48 @@ public sealed class MainWindowViewModel : ObservableObject, IDisposable
             new(
                 ServiceId.Discord,
                 "D",
+                "pack://application:,,,/KROT;component/assets/services/discord-512px.png",
                 IsSelected(ServiceId.Discord),
                 OnServiceSelectionChanged,
-                Channel("✉", "Channel.Discord.Text"),
-                Channel("▧", "Channel.Discord.Media"),
-                Channel("●", "Channel.Discord.Voice")),
+                Channel(
+                    "text",
+                    "M6,2 H19 V21 H6 Z M3,5 H6 M3,5 V23 H17 V21 M9,7 H16 M9,11 H16 M9,15 H16 M9,19 H16",
+                    "Channel.Discord.Text"),
+                Channel(
+                    "media",
+                    "M4,7 H8 L9.5,4 H14.5 L16,7 H20 A2,2 0 0 1 22,9 V19 A2,2 0 0 1 20,21 H4 A2,2 0 0 1 2,19 V9 A2,2 0 0 1 4,7 Z M12,10 A4,4 0 1 0 12,18 A4,4 0 1 0 12,10 M19,10 L19.01,10",
+                    "Channel.Discord.Media"),
+                Channel(
+                    "voice",
+                    "M12,3 A3,3 0 0 0 9,6 V12 A3,3 0 0 0 15,12 V6 A3,3 0 0 0 12,3 M5,11 V12 A7,7 0 0 0 19,12 V11 M12,19 V22 M8,22 H16",
+                    "Channel.Discord.Voice")),
             new(
                 ServiceId.YouTube,
                 "▶",
+                "pack://application:,,,/KROT;component/assets/services/youtube-512px.png",
                 IsSelected(ServiceId.YouTube),
                 OnServiceSelectionChanged,
-                Channel("⌂", "Channel.YouTube.Site"),
-                Channel("▶", "Channel.YouTube.Video"),
-                Channel("Q", "Channel.YouTube.Quic")),
-            new(
-                ServiceId.AiServices,
-                "AI",
-                IsSelected(ServiceId.AiServices),
-                OnServiceSelectionChanged,
-                Channel("⌂", "Channel.Ai.Site"),
-                Channel("≈", "Channel.Ai.Stream"))
+                Channel(
+                    "site",
+                    "M6,2 H19 V21 H6 Z M3,5 H6 M3,5 V23 H17 V21 M9,7 H16 M9,11 H16 M9,15 H16 M9,19 H16",
+                    "Channel.YouTube.Site"),
+                Channel(
+                    "video",
+                    "M4,7 H8 L9.5,4 H14.5 L16,7 H20 A2,2 0 0 1 22,9 V19 A2,2 0 0 1 20,21 H4 A2,2 0 0 1 2,19 V9 A2,2 0 0 1 4,7 Z M12,10 A4,4 0 1 0 12,18 A4,4 0 1 0 12,10 M19,10 L19.01,10",
+                    "Channel.YouTube.Video"))
         };
     }
 
-    private static ChannelIndicatorViewModel Channel(string symbol, string tooltipKey) =>
-        new() { Symbol = symbol, TooltipKey = tooltipKey };
+    private static ChannelIndicatorViewModel Channel(
+        string id,
+        string geometryData,
+        string tooltipKey) =>
+        new()
+        {
+            Id = id,
+            GeometryData = geometryData,
+            TooltipKey = tooltipKey
+        };
 
     private void OnServiceSelectionChanged(ServiceItemViewModel item)
     {
@@ -337,6 +403,7 @@ public sealed class MainWindowViewModel : ObservableObject, IDisposable
         }
 
         _ = SaveSettingsSafeAsync();
+        UpdateChannelStates(_lastSnapshot);
     }
 
     private async Task SaveSettingsSafeAsync()
@@ -366,25 +433,23 @@ public sealed class MainWindowViewModel : ObservableObject, IDisposable
 
     private void RefreshLocalization()
     {
-        StatusText = _localization.Get(MessageKeyFor(AppState));
         foreach (var service in Services)
         {
             service.Tooltip = _localization.Get($"Service.{service.Id}");
             foreach (var channel in service.Channels)
             {
-                channel.Tooltip = _localization.Get(channel.TooltipKey);
+                RefreshChannelTooltip(channel);
             }
         }
 
         OnPropertyChanged(nameof(Title));
-        OnPropertyChanged(nameof(SubtitleText));
-        OnPropertyChanged(nameof(FooterText));
         OnPropertyChanged(nameof(AutoStartText));
         OnPropertyChanged(nameof(PrimaryActionText));
         OnPropertyChanged(nameof(LanguageText));
         OnPropertyChanged(nameof(LogsText));
         OnPropertyChanged(nameof(ViewLogsText));
-        OnPropertyChanged(nameof(SupportText));
+        OnPropertyChanged(nameof(AboutText));
+        OnPropertyChanged(nameof(ProjectRepositoryText));
         OnPropertyChanged(nameof(ZapretText));
         OnPropertyChanged(nameof(LicensesText));
         OnPropertyChanged(nameof(VersionText));
@@ -394,19 +459,11 @@ public sealed class MainWindowViewModel : ObservableObject, IDisposable
         OnPropertyChanged(nameof(TrayToggleText));
     }
 
-    private void AddJournal(string key)
+    private void RefreshChannelTooltip(ChannelIndicatorViewModel channel)
     {
-        var message = _localization.Get(key);
-        if (Journal.Count > 0 && Journal[0] == message)
-        {
-            return;
-        }
-
-        Journal.Insert(0, message);
-        while (Journal.Count > 8)
-        {
-            Journal.RemoveAt(Journal.Count - 1);
-        }
+        var label = _localization.Get(channel.TooltipKey);
+        var state = _localization.Get($"ChannelState.{channel.State}");
+        channel.Tooltip = $"{label} — {state}";
     }
 
     private void OpenUrl(string url)
@@ -419,15 +476,4 @@ public sealed class MainWindowViewModel : ObservableObject, IDisposable
         Process.Start(new ProcessStartInfo(url) { UseShellExecute = true });
     }
 
-    private static string MessageKeyFor(AppState state) =>
-        state switch
-        {
-            AppState.Off => "Status.Off",
-            AppState.Starting => "Status.Starting",
-            AppState.TestingDirect => "Status.TestingDirect",
-            AppState.TestingSavedProfiles or AppState.SearchingProfiles => "Status.Searching",
-            AppState.Running => "Status.Running",
-            AppState.Stopping => "Status.Stopping",
-            _ => "Status.Error"
-        };
 }

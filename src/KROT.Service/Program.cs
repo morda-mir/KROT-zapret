@@ -1,6 +1,7 @@
 using System;
 using System.ServiceProcess;
 using System.Threading;
+using KROT.Diagnostics.FieldTesting;
 using KROT.Infrastructure.Logging;
 using KROT.Infrastructure.Storage;
 using KROT.Service.Hosting;
@@ -25,9 +26,19 @@ internal static class Program
         var processManager = useRealRuntime
             ? (KROT.Core.Contracts.IZapretProcessManager)new RealZapretProcessManager(runtimeRoot, log)
             : new FakeZapretProcessManager();
+        var presetCatalog = new BuiltInPresetCatalog(runtimeRoot);
+        var presetSearch = new AdaptivePresetSearchEngine(
+            processManager,
+            presetCatalog,
+            new HttpPresetReachabilityProbe(log),
+            new PresetSelectionCacheStore(AppPaths.PresetCacheFile),
+            log);
         var engine = new ServiceEngine(
             processManager,
-            new BuiltInPresetCatalog(runtimeRoot),
+            presetCatalog,
+            presetSearch,
+            new NetworkEnvironmentInspector(),
+            new InternetAvailabilityProbe(log),
             log,
             isFakeRuntime: !useRealRuntime);
 

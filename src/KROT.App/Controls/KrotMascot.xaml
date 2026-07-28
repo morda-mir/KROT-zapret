@@ -1,0 +1,101 @@
+<UserControl x:Class="KROT.App.Controls.KrotMascot"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    Width="220"
+    Height="130"
+    IsHitTestVisible="False"
+    SnapsToDevicePixels="True"
+    UseLayoutRounding="True">
+
+    <Viewbox Stretch="Uniform">
+        <Canvas Width="330" Height="225">
+
+            <Path x:Name="Silhouette"
+                  Fill="#050505"
+                  Data="M 0 194 L 0 208 L 2 209 L 11 209 L 12 210 L 20 210 L 21 211 L 33 211 L 34 212 L 48 212 L 49 213 L 70 213 L 71 214 L 96 214 L 97 215 L 134 215 L 135 216 L 192 216 L 193 215 L 232 215 L 233 214 L 259 214 L 260 213 L 276 213 L 277 212 L 290 212 L 291 211 L 303 211 L 304 210 L 314 210 L 315 209 L 326 209 L 327 208 L 329 208 L 329 194 L 326 194 L 325 193 L 323 193 L 322 192 L 320 192 L 319 191 L 317 191 L 316 190 L 311 189 L 308 187 L 308 185 L 311 179 L 310 177 L 310 174 L 308 170 L 306 168 L 306 167 L 301 162 L 300 160 L 299 160 L 291 153 L 288 152 L 281 147 L 279 147 L 274 144 L 272 144 L 271 143 L 269 143 L 265 141 L 262 141 L 261 140 L 259 140 L 258 139 L 254 139 L 253 138 L 253 135 L 252 134 L 252 124 L 251 123 L 250 112 L 249 111 L 249 108 L 247 104 L 247 101 L 246 100 L 245 95 L 242 90 L 242 88 L 238 80 L 236 78 L 234 73 L 229 67 L 229 66 L 215 52 L 214 52 L 208 47 L 198 42 L 196 42 L 195 41 L 193 41 L 192 40 L 190 40 L 186 38 L 183 38 L 182 37 L 176 37 L 175 36 L 152 36 L 151 37 L 147 37 L 146 38 L 139 39 L 138 40 L 136 40 L 135 41 L 130 42 L 122 46 L 120 48 L 116 50 L 113 53 L 112 53 L 100 65 L 100 66 L 97 69 L 97 70 L 93 75 L 86 89 L 86 91 L 84 94 L 84 96 L 82 100 L 82 103 L 81 104 L 80 111 L 79 112 L 79 117 L 78 118 L 78 124 L 77 125 L 77 135 L 76 136 L 76 138 L 75 139 L 70 139 L 69 140 L 66 140 L 62 142 L 59 142 L 54 145 L 52 145 L 44 149 L 42 151 L 41 151 L 39 153 L 35 155 L 25 164 L 25 165 L 22 168 L 19 174 L 19 176 L 18 177 L 18 182 L 20 185 L 20 187 L 18 189 L 16 189 L 12 191 L 9 191 L 8 192 L 6 192 L 5 193 Z" />
+
+            <Canvas x:Name="EyesGroup">
+                <Path x:Name="LeftEye"
+                      Fill="White"
+                      Data="M 138 86 L 137 87 L 133 87 L 130 90 L 130 96 L 131 97 L 131 99 L 133 101 L 135 101 L 136 102 L 137 101 L 138 101 L 141 98 L 141 96 L 142 95 L 142 90 L 141 89 L 141 88 L 140 88 Z"
+                      RenderTransformOrigin="0.5,0.5">
+                    <Path.RenderTransform>
+                        <TransformGroup>
+                            <ScaleTransform x:Name="LeftEyeScale"
+                                            ScaleX="1"
+                                            ScaleY="1" />
+                            <TranslateTransform x:Name="LeftEyeTranslate" />
+                        </TransformGroup>
+                    </Path.RenderTransform>
+                </Path>
+
+                <Path x:Name="RightEye"
+                      Fill="White"
+                      Data="M 192 85 L 191 86 L 190 86 L 187 90 L 187 95 L 188 96 L 189 99 L 191 101 L 195 101 L 198 98 L 198 97 L 199 96 L 199 90 L 196 86 L 194 86 L 193 85 Z"
+                      RenderTransformOrigin="0.5,0.5">
+                    <Path.RenderTransform>
+                        <TransformGroup>
+                            <ScaleTransform x:Name="RightEyeScale"
+                                            ScaleX="1"
+                                            ScaleY="1" />
+                            <TranslateTransform x:Name="RightEyeTranslate" />
+                        </TransformGroup>
+                    </Path.RenderTransform>
+                </Path>
+            </Canvas>
+
+            <Canvas x:Name="WhiskersGroup">
+                <Canvas.RenderTransform>
+                    <TranslateTransform x:Name="WhiskersTranslate" />
+                </Canvas.RenderTransform>
+
+                <Path x:Name="LeftWhiskers"
+                      Fill="White"
+                      Data="M 103 106 L 110 110 L 112 110 L 113 111 L 115 111 L 116 112 L 119 112 L 120 113 L 122 113 L 123 114 L 127 114 L 128 115 L 130 115 L 130 114 L 129 114 L 122 110 L 120 110 L 119 109 L 117 109 L 116 108 L 114 108 L 113 107 L 111 107 L 110 106 Z M 101 124 L 102 124 L 103 125 L 115 125 L 116 124 L 123 124 L 124 123 L 129 123 L 129 122 L 125 122 L 124 121 L 113 121 L 112 122 L 106 122 L 105 123 L 103 123 L 102 124 Z M 130 131 L 126 131 L 125 132 L 123 132 L 122 133 L 117 135 L 111 140 L 115 140 L 116 139 L 121 137 L 123 135 L 128 133 Z" />
+
+                <Path x:Name="RightWhiskers"
+                      Fill="White"
+                      Data="M 224 106 L 219 106 L 218 107 L 215 107 L 214 108 L 212 108 L 211 109 L 210 109 L 207 111 L 205 111 L 198 115 L 201 115 L 202 114 L 204 114 L 205 113 L 208 113 L 209 112 L 212 112 L 213 111 L 215 111 L 216 110 L 221 109 Z M 200 122 L 201 123 L 205 123 L 206 124 L 216 124 L 217 125 L 226 125 L 227 124 L 228 124 L 225 122 L 216 122 L 215 121 L 207 121 L 206 122 Z M 197 130 L 203 135 L 204 135 L 213 140 L 216 140 L 216 139 L 214 137 L 213 137 L 208 133 L 206 133 L 205 132 L 203 132 L 202 131 L 199 131 L 198 130 Z" />
+            </Canvas>
+
+            <Canvas x:Name="NoseGroup"
+                    RenderTransformOrigin="0.5,0.5">
+                <Canvas.RenderTransform>
+                    <TransformGroup>
+                        <ScaleTransform x:Name="NoseScale"
+                                        ScaleX="1"
+                                        ScaleY="1" />
+                        <TranslateTransform x:Name="NoseTranslate" />
+                    </TransformGroup>
+                </Canvas.RenderTransform>
+
+                <Path x:Name="NoseBase"
+                      Fill="#FF6464"
+                      Data="M 154 104 L 152 106 L 151 106 L 146 111 L 146 112 L 145 113 L 145 115 L 144 116 L 144 122 L 145 123 L 146 128 L 153 135 L 154 135 L 155 136 L 157 136 L 158 137 L 160 137 L 161 138 L 169 138 L 170 137 L 172 137 L 173 136 L 176 135 L 180 131 L 180 130 L 182 128 L 182 126 L 184 123 L 184 114 L 183 113 L 181 108 L 180 108 L 177 105 L 176 105 L 175 104 L 173 104 L 172 103 L 169 103 L 168 102 L 161 102 L 160 103 L 157 103 L 156 104 Z" />
+
+                <Path x:Name="NoseHighlight"
+                      Fill="White"
+                      Data="M 166 112 L 163 109 L 162 109 L 161 108 L 159 108 L 158 109 L 155 109 L 152 113 L 152 117 L 153 118 L 153 119 L 154 119 L 155 120 L 162 120 L 165 118 L 165 116 L 166 115 Z" />
+            </Canvas>
+
+            <Path x:Name="LeftPaw"
+                  Fill="White"
+                  Data="M 48 181 L 48 186 L 49 186 L 51 188 L 54 189 L 57 192 L 58 192 L 65 198 L 66 198 L 68 200 L 69 200 L 74 203 L 75 202 L 75 197 L 74 196 L 74 194 L 73 193 L 73 192 L 67 184 L 67 183 L 68 182 L 72 182 L 73 183 L 74 183 L 92 200 L 93 200 L 95 202 L 98 203 L 99 202 L 98 201 L 98 195 L 97 194 L 97 191 L 96 190 L 95 187 L 93 185 L 93 184 L 87 178 L 88 177 L 90 177 L 91 178 L 96 180 L 98 182 L 99 182 L 112 195 L 112 196 L 113 196 L 116 199 L 116 200 L 117 200 L 120 203 L 120 195 L 119 194 L 119 191 L 118 190 L 116 185 L 114 183 L 114 182 L 107 175 L 106 175 L 104 173 L 103 173 L 98 170 L 93 169 L 92 168 L 88 168 L 87 167 L 73 167 L 72 168 L 68 168 L 67 169 L 65 169 L 64 170 L 62 170 L 61 171 L 58 172 L 56 174 L 55 174 L 53 176 L 52 176 L 49 179 L 49 180 Z"
+                  RenderTransformOrigin="0.78,0.82">
+                <Path.RenderTransform>
+                    <RotateTransform x:Name="LeftPawRotate" />
+                </Path.RenderTransform>
+            </Path>
+
+            <Path x:Name="RightPaw"
+                  Fill="White"
+                  Data="M 281 181 L 280 180 L 280 179 L 276 175 L 275 175 L 273 173 L 272 173 L 267 170 L 262 169 L 261 168 L 256 168 L 255 167 L 241 167 L 240 168 L 236 168 L 235 169 L 234 169 L 233 170 L 231 170 L 230 171 L 225 173 L 223 175 L 222 175 L 214 183 L 214 184 L 211 188 L 211 190 L 210 191 L 210 194 L 209 195 L 209 202 L 210 201 L 211 201 L 228 184 L 229 184 L 232 181 L 233 181 L 238 178 L 240 178 L 241 177 L 242 178 L 242 179 L 241 180 L 240 180 L 236 184 L 235 187 L 233 189 L 233 191 L 232 192 L 232 194 L 231 195 L 231 203 L 234 202 L 237 199 L 238 199 L 255 183 L 256 183 L 257 182 L 262 182 L 263 183 L 259 187 L 259 188 L 256 192 L 256 194 L 255 195 L 255 197 L 254 198 L 254 203 L 255 203 L 256 202 L 261 200 L 263 198 L 264 198 L 272 191 L 273 191 L 276 188 L 277 188 L 279 186 L 280 186 L 281 185 Z"
+                  RenderTransformOrigin="0.22,0.82">
+                <Path.RenderTransform>
+                    <RotateTransform x:Name="RightPawRotate" />
+                </Path.RenderTransform>
+            </Path>
+
+        </Canvas>
+    </Viewbox>
+</UserControl>

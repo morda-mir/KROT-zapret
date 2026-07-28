@@ -41,14 +41,17 @@ public sealed class AtomicJsonSettingsStoreTests : IDisposable
         Directory.CreateDirectory(_directory);
         File.WriteAllText(
             path,
-            "{\"Services\":[{\"Id\":0,\"IsEnabled\":true},{\"Id\":0,\"IsEnabled\":false},{\"Id\":2,\"IsEnabled\":true}]}");
+            "{\"Services\":[{\"Id\":0,\"IsEnabled\":true},{\"Id\":0,\"IsEnabled\":false},{\"Id\":2,\"IsEnabled\":true},{\"Id\":3,\"IsEnabled\":true}]}");
 
         var loaded = await new AtomicJsonSettingsStore(path)
             .LoadAsync(CancellationToken.None);
 
-        Assert.Equal(3, loaded.Services.Count);
+        Assert.Equal(2, loaded.Services.Count);
+        Assert.Equal(KrotSettings.CurrentSchemaVersion, loaded.SchemaVersion);
         Assert.True(loaded.Services.Single(x => x.Id == ServiceId.Discord).IsEnabled);
         Assert.DoesNotContain(loaded.Services, x => (int)x.Id == 2);
+        Assert.DoesNotContain("\"Id\": 2", File.ReadAllText(path));
+        Assert.DoesNotContain("\"Id\": 3", File.ReadAllText(path));
     }
 
     public void Dispose()

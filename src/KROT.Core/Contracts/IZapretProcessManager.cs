@@ -11,6 +11,10 @@ public interface IZapretProcessManager
 
     Task StartMainAsync(IReadOnlyList<string> arguments, CancellationToken cancellationToken);
 
+    Task RestartMainAsync(IReadOnlyList<string> arguments, CancellationToken cancellationToken);
+
+    Task StopMainAsync(CancellationToken cancellationToken);
+
     Task StartVoiceAsync(IReadOnlyList<string> arguments, CancellationToken cancellationToken);
 
     Task RestartVoiceAsync(IReadOnlyList<string> arguments, CancellationToken cancellationToken);
@@ -18,3 +22,7 @@ public interface IZapretProcessManager
     Task StopAllOwnedAsync(CancellationToken cancellationToken);
 }
 
+public interface IRuntimeOutputSource
+{
+    event System.EventHandler<RuntimeOutputEvent>? RuntimeOutput;
+}

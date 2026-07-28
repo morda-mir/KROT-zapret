@@ -18,4 +18,6 @@ public static class AppPaths
     public static string ServiceStateDirectory => Path.Combine(CommonDataRoot, "service-state");
 
     public static string ServiceLogsDirectory => Path.Combine(ServiceStateDirectory, "logs");
+
+    public static string PresetCacheFile => Path.Combine(ServiceStateDirectory, "preset-cache.json");
 }

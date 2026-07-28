@@ -14,12 +14,14 @@ public sealed class ServiceItemViewModel : ObservableObject
     public ServiceItemViewModel(
         ServiceId id,
         string iconGlyph,
+        string iconSource,
         bool isSelected,
         Action<ServiceItemViewModel> selectionChanged,
         params ChannelIndicatorViewModel[] channels)
     {
         Id = id;
         IconGlyph = iconGlyph;
+        IconSource = iconSource;
         _isSelected = isSelected;
         SelectionChanged = selectionChanged;
         Channels = new ObservableCollection<ChannelIndicatorViewModel>(channels);
@@ -28,6 +30,8 @@ public sealed class ServiceItemViewModel : ObservableObject
     public ServiceId Id { get; }
 
     public string IconGlyph { get; }
+
+    public string IconSource { get; }
 
     public ObservableCollection<ChannelIndicatorViewModel> Channels { get; }
 
@@ -62,4 +66,3 @@ public sealed class ServiceItemViewModel : ObservableObject
         OnPropertyChanged(nameof(Channels));
     }
 }
-

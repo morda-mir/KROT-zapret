@@ -35,19 +35,11 @@ public sealed class AtomicJsonSettingsStore : ISettingsStore
 
         try
         {
-            using var stream = new FileStream(
-                _path,
-                FileMode.Open,
-                FileAccess.Read,
-                FileShare.Read,
-                4096,
-                useAsync: true);
-            using var reader = new StreamReader(stream, Encoding.UTF8, true);
-            var json = await reader.ReadToEndAsync().ConfigureAwait(false);
-            cancellationToken.ThrowIfCancellationRequested();
-            return Normalize(
-                JsonConvert.DeserializeObject<KrotSettings>(json, _serializerSettings)
-                ?? new KrotSettings());
+            var json = await ReadAllTextAsync(_path, cancellationToken).ConfigureAwait(false);
+            var loaded = JsonConvert.DeserializeObject<KrotSettings>(json, _serializerSettings)
+                ?? new KrotSettings();
+            return await NormalizeAndPersistAsync(loaded, cancellationToken)
+                .ConfigureAwait(false);
         }
         catch (JsonException)
         {
@@ -58,9 +50,10 @@ public sealed class AtomicJsonSettingsStore : ISettingsStore
             }
 
             var json = await ReadAllTextAsync(backup, cancellationToken).ConfigureAwait(false);
-            return Normalize(
-                JsonConvert.DeserializeObject<KrotSettings>(json, _serializerSettings)
-                ?? new KrotSettings());
+            var loaded = JsonConvert.DeserializeObject<KrotSettings>(json, _serializerSettings)
+                ?? new KrotSettings();
+            return await NormalizeAndPersistAsync(loaded, cancellationToken)
+                .ConfigureAwait(false);
         }
     }
 
@@ -119,6 +112,7 @@ public sealed class AtomicJsonSettingsStore : ISettingsStore
 
     private static KrotSettings Normalize(KrotSettings settings)
     {
+        settings.SchemaVersion = KrotSettings.CurrentSchemaVersion;
         settings.Services = settings.Services
             .Where(x => Enum.IsDefined(typeof(ServiceId), x.Id))
             .GroupBy(x => x.Id)
@@ -138,5 +132,23 @@ public sealed class AtomicJsonSettingsStore : ISettingsStore
         }
 
         return settings;
+    }
+
+    private async Task<KrotSettings> NormalizeAndPersistAsync(
+        KrotSettings settings,
+        CancellationToken cancellationToken)
+    {
+        var requiresRewrite =
+            settings.SchemaVersion != KrotSettings.CurrentSchemaVersion
+            || settings.Services.Count != Enum.GetValues(typeof(ServiceId)).Length
+            || settings.Services.Any(item => !Enum.IsDefined(typeof(ServiceId), item.Id))
+            || settings.Services.GroupBy(item => item.Id).Any(group => group.Count() > 1);
+        var normalized = Normalize(settings);
+        if (requiresRewrite)
+        {
+            await SaveAsync(normalized, cancellationToken).ConfigureAwait(false);
+        }
+
+        return normalized;
     }
 }
