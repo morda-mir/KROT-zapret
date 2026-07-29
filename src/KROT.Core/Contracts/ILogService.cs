@@ -6,6 +6,7 @@ public interface ILogService
 {
     void Info(string eventName, string message);
 
+    void Detail(string eventName, string message);
+
     void Error(string eventName, string message, Exception? exception = null);
 }
-

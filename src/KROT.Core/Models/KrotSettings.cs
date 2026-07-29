@@ -1,10 +1,11 @@
+using System;
 using System.Collections.Generic;
 
 namespace KROT.Core.Models;
 
 public sealed class KrotSettings
 {
-    public const int CurrentSchemaVersion = 2;
+    public const int CurrentSchemaVersion = 3;
 
     public int SchemaVersion { get; set; } = CurrentSchemaVersion;
 
@@ -15,6 +16,10 @@ public sealed class KrotSettings
     public bool RestoreEnabledState { get; set; }
 
     public bool DetailedLogs { get; set; }
+
+    public string LastUpdateNotificationVersion { get; set; } = string.Empty;
+
+    public DateTime? LastUpdateNotificationUtc { get; set; }
 
     public List<ServiceSelection> Services { get; set; } = new()
     {

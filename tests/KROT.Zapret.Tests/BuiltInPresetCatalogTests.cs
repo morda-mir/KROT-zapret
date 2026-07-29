@@ -1,7 +1,11 @@
-using System.Linq;
+using System;
+using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using KROT.Core.Models;
 using KROT.Zapret.Profiles;
+using KROT.Zapret.Runtime;
+using Newtonsoft.Json;
 using Xunit;
 
 namespace KROT.Zapret.Tests;
@@ -164,6 +168,57 @@ public sealed class BuiltInPresetCatalogTests
         }
     }
 
+    [Fact]
+    public void RuntimeManifest_CoversEveryRootedPresetInput()
+    {
+        var runtimeRoot = FindRuntimeRoot();
+        var catalog = new BuiltInPresetCatalog(runtimeRoot);
+        var arguments = new List<string>();
+        foreach (var tcp in BuiltInStrategyCatalog.Tcp)
+        {
+            var plan = catalog.Build(
+                new KrotStartOptions
+                {
+                    Services = { ServiceId.Discord, ServiceId.YouTube }
+                },
+                new PresetSelection
+                {
+                    DiscordTcp = tcp.Id,
+                    YouTubeTcp = tcp.Id,
+                    YouTubeQuic = PresetSelection.Direct,
+                    DiscordVoice = PresetSelection.Direct
+                });
+            arguments.AddRange(plan.MainArguments);
+        }
+
+        var adaptivePlan = catalog.Build(new KrotStartOptions
+        {
+            Services = { ServiceId.Discord, ServiceId.YouTube }
+        });
+        arguments.AddRange(adaptivePlan.MainArguments);
+        arguments.AddRange(adaptivePlan.VoiceArguments);
+
+        var manifest = JsonConvert.DeserializeObject<RuntimeManifest>(
+                           File.ReadAllText(
+                               Path.Combine(runtimeRoot, "runtime-manifest.json")))
+                       ?? throw new InvalidDataException("Runtime manifest is invalid.");
+        var entries = manifest.Files.ToDictionary(
+            entry => Path.GetFullPath(
+                Path.Combine(runtimeRoot, entry.RelativePath)),
+            entry => entry,
+            StringComparer.OrdinalIgnoreCase);
+        var verifier = new FileIntegrityVerifier();
+        foreach (var path in RootedInputPaths(arguments))
+        {
+            Assert.True(
+                entries.TryGetValue(path, out var entry),
+                $"Preset input is missing from runtime-manifest.json: {path}");
+            Assert.True(
+                verifier.Verify(path, entry!.Sha256),
+                $"Preset input hash is invalid: {path}");
+        }
+    }
+
     [Theory]
     [InlineData("KROT_UDP_WINNER|youtube_quic|quic-03-facebook-r6", "youtube_quic", "quic-03-facebook-r6")]
     [InlineData("KROT_UDP_WINNER|discord_voice|voice-06-udplen-2", "discord_voice", "voice-06-udplen-2")]
@@ -180,4 +235,63 @@ public sealed class BuiltInPresetCatalogTests
             out _));
     }
 
+    [Theory]
+    [InlineData("KROT_UDP_ACTIVITY|discord_voice", "discord_voice")]
+    [InlineData("KROT_UDP_ACTIVITY|youtube_quic", "youtube_quic")]
+    public void UdpActivityMarker_ParsesOnlyKnownChannels(
+        string line,
+        string expectedChannel)
+    {
+        Assert.True(UdpActivityMarkerParser.TryParse(line, out var marker));
+        Assert.Equal(expectedChannel, marker.Channel);
+        Assert.False(UdpActivityMarkerParser.TryParse(
+            "KROT_UDP_ACTIVITY|unknown",
+            out _));
+        Assert.False(UdpActivityMarkerParser.TryParse(
+            "KROT_UDP_ACTIVITY|discord_voice|extra",
+            out _));
+    }
+
+    private static IEnumerable<string> RootedInputPaths(
+        IEnumerable<string> arguments)
+    {
+        foreach (var argument in arguments)
+        {
+            var markerIndex = argument.LastIndexOf('@');
+            var valueIndex = markerIndex >= 0
+                ? markerIndex
+                : argument.IndexOf('=');
+            if (valueIndex < 0 || valueIndex == argument.Length - 1)
+            {
+                continue;
+            }
+
+            var candidate = argument.Substring(valueIndex + 1);
+            if (Path.IsPathRooted(candidate))
+            {
+                yield return Path.GetFullPath(candidate);
+            }
+        }
+    }
+
+    private static string FindRuntimeRoot()
+    {
+        var directory = new DirectoryInfo(AppContext.BaseDirectory);
+        while (directory != null)
+        {
+            var candidate = Path.Combine(
+                directory.FullName,
+                "third_party",
+                "zapret");
+            if (File.Exists(Path.Combine(candidate, "runtime-manifest.json")))
+            {
+                return candidate;
+            }
+
+            directory = directory.Parent;
+        }
+
+        throw new DirectoryNotFoundException(
+            "Cannot locate third_party/zapret from the test output.");
+    }
 }

@@ -1,7 +1,7 @@
 using System;
 using System.Globalization;
-using System.Windows.Media;
 using System.Windows.Data;
+using System.Windows.Media;
 using KROT.Core.States;
 
 namespace KROT.App.Converters;
@@ -17,7 +17,9 @@ public sealed class StateBrushConverter : IValueConverter
     {
         return value switch
         {
-            ChannelState.Testing or ChannelState.Searching or ChannelState.WaitingForActivity => Yellow,
+            ChannelState.WaitingForActivity
+                or ChannelState.Testing
+                or ChannelState.Searching => Yellow,
             ChannelState.WorkingDirect or ChannelState.WorkingPreset => Green,
             ChannelState.Failed => Red,
             AppState.Starting or AppState.TestingDirect or AppState.TestingSavedProfiles or AppState.SearchingProfiles or AppState.Stopping => Yellow,

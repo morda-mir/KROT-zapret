@@ -9,6 +9,7 @@ using KROT.App.ViewModels;
 using KROT.Core.Models;
 using KROT.Infrastructure.Logging;
 using KROT.Infrastructure.Storage;
+using KROT.Infrastructure.Updates;
 using KROT.Localization;
 
 namespace KROT.App;
@@ -29,6 +30,7 @@ public partial class App
             return;
         }
 
+        var log = new RotatingFileLogService(detailed: false);
         try
         {
             var settingsStore = new AtomicJsonSettingsStore();
@@ -39,32 +41,54 @@ public partial class App
                 settings.Language = CultureInfo.CurrentUICulture.Name.StartsWith("ru", StringComparison.OrdinalIgnoreCase)
                     ? "ru"
                     : "en";
+                await settingsStore.SaveAsync(settings, CancellationToken.None);
             }
 
             var localization = new DictionaryLocalizationService(settings.Language);
-            var log = new RotatingFileLogService(settings.DetailedLogs);
+            log.Detailed = settings.DetailedLogs;
             var autoStart = new RegistryAutoStartManager();
-#if DEBUG
-            var serviceClient = (KROT.Core.Contracts.IServiceClient)new NamedPipeServiceClient();
-#else
-            var serviceClient = new FakeServiceClient();
-#endif
+            var demoMode = Array.Exists(
+                e.Args,
+                argument => string.Equals(
+                    argument,
+                    "--demo",
+                    StringComparison.OrdinalIgnoreCase));
+            var serviceClient = demoMode
+                ? (KROT.Core.Contracts.IServiceClient)new FakeServiceClient()
+                : new NamedPipeServiceClient();
+            var autoStartLaunch = Array.Exists(
+                e.Args,
+                argument => string.Equals(
+                    argument,
+                    "--autostart",
+                    StringComparison.OrdinalIgnoreCase));
             _viewModel = new MainWindowViewModel(
                 settings,
                 settingsStore,
                 localization,
                 serviceClient,
                 autoStart,
+                new GitHubReleaseUpdateService(),
                 log);
 
             var window = new MainWindow(_viewModel);
             MainWindow = window;
             window.Show();
+            if (autoStartLaunch)
+            {
+                window.WindowState = WindowState.Minimized;
+            }
         }
         catch (Exception ex)
         {
+            log.Error("app.start.failed", "KROT GUI failed to start.", ex);
+            var isRussian = CultureInfo.CurrentUICulture.Name.StartsWith(
+                "ru",
+                StringComparison.OrdinalIgnoreCase);
             MessageBox.Show(
-                $"KROT could not start.\n\n{ex.Message}",
+                isRussian
+                    ? "KROT не удалось запустить. Подробности записаны в журнал."
+                    : "KROT could not start. Details were written to the log.",
                 "KROT zapret",
                 MessageBoxButton.OK,
                 MessageBoxImage.Error);

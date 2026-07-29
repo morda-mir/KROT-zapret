@@ -95,12 +95,81 @@ public sealed class NetworkEnvironmentInspector
         var dns = properties.DnsAddresses
             .Select(address => address.ToString())
             .OrderBy(value => value, StringComparer.Ordinal);
+        var gateways = properties.GatewayAddresses
+            .Select(gateway => gateway.Address)
+            .Where(address =>
+                !address.Equals(IPAddress.Any)
+                && !address.Equals(IPAddress.IPv6Any))
+            .Select(address => address.ToString())
+            .OrderBy(value => value, StringComparer.Ordinal);
+        var dhcpServers = properties.DhcpServerAddresses
+            .Select(address => address.ToString())
+            .OrderBy(value => value, StringComparer.Ordinal);
+        var networkPrefixes = properties.UnicastAddresses
+            .Select(NormalizeNetworkPrefix)
+            .Where(value => !string.IsNullOrWhiteSpace(value))
+            .Distinct(StringComparer.Ordinal)
+            .OrderBy(value => value, StringComparer.Ordinal);
         return string.Join(
             ";",
             adapter.Id,
             adapter.NetworkInterfaceType,
             string.Join(",", dns),
-            properties.GatewayAddresses.Count > 0 ? "gateway" : "no-gateway");
+            string.Join(",", gateways),
+            string.Join(",", dhcpServers),
+            string.Join(",", networkPrefixes));
+    }
+
+    private static string NormalizeNetworkPrefix(
+        UnicastIPAddressInformation unicast)
+    {
+        var address = unicast.Address;
+        var addressBytes = address.GetAddressBytes();
+        if (address.AddressFamily == System.Net.Sockets.AddressFamily.InterNetwork)
+        {
+            try
+            {
+                var maskBytes = unicast.IPv4Mask.GetAddressBytes();
+                if (maskBytes.Length != addressBytes.Length)
+                {
+                    return string.Empty;
+                }
+
+                var networkBytes = new byte[addressBytes.Length];
+                var prefixLength = 0;
+                for (var index = 0; index < addressBytes.Length; index++)
+                {
+                    networkBytes[index] = (byte)(addressBytes[index] & maskBytes[index]);
+                    prefixLength += CountBits(maskBytes[index]);
+                }
+
+                return $"{new IPAddress(networkBytes)}/{prefixLength}";
+            }
+            catch (NetworkInformationException)
+            {
+                return string.Empty;
+            }
+        }
+
+        if (address.AddressFamily == System.Net.Sockets.AddressFamily.InterNetworkV6)
+        {
+            var prefixBytes = addressBytes.Take(8).ToArray();
+            return string.Concat(prefixBytes.Select(value => value.ToString("x2"))) + "/64";
+        }
+
+        return string.Empty;
+    }
+
+    private static int CountBits(byte value)
+    {
+        var count = 0;
+        while (value != 0)
+        {
+            count += value & 1;
+            value >>= 1;
+        }
+
+        return count;
     }
 
     private static bool IsSystemProxyConfigured()

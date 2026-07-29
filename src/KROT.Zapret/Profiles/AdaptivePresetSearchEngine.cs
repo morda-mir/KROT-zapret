@@ -230,7 +230,7 @@ public sealed class AdaptivePresetSearchEngine
                 var plan = _presetCatalog.Build(options, trial);
                 await StartOrReplaceMainAsync(plan, cancellationToken).ConfigureAwait(false);
                 runningSelection = trial;
-                _log.Info(
+                _log.Detail(
                     "preset.search.try",
                     $"Testing TCP strategies for {string.Join(",", attempted.Select(serviceId => $"{serviceId}={GetTcp(trial, serviceId)}"))}.");
 

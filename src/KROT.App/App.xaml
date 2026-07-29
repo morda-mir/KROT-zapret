@@ -61,11 +61,17 @@
                     Background="#121619">
               <Path x:Name="Check"
                     Visibility="Collapsed"
+                    Width="14"
+                    Height="10"
+                    HorizontalAlignment="Center"
+                    VerticalAlignment="Center"
+                    Stretch="Uniform"
                     Stroke="{StaticResource AccentBrush}"
-                    StrokeThickness="2.5"
+                    StrokeThickness="2.2"
                     StrokeStartLineCap="Round"
                     StrokeEndLineCap="Round"
-                    Data="M 5,11 L 9,15 L 17,7" />
+                    StrokeLineJoin="Round"
+                    Data="M 1,5 L 5,9 L 13,1" />
             </Border>
             <ControlTemplate.Triggers>
               <Trigger Property="IsChecked" Value="True">
@@ -82,4 +88,3 @@
     </Style>
   </Application.Resources>
 </Application>
-

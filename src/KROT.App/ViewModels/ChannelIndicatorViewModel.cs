@@ -27,9 +27,18 @@ public sealed class ChannelIndicatorViewModel : ObservableObject
         set => SetProperty(ref _strategyId, value);
     }
 
+    public bool IsBusy =>
+        _state is ChannelState.Testing or ChannelState.Searching;
+
     public ChannelState State
     {
         get => _state;
-        set => SetProperty(ref _state, value);
+        set
+        {
+            if (SetProperty(ref _state, value))
+            {
+                OnPropertyChanged(nameof(IsBusy));
+            }
+        }
     }
 }

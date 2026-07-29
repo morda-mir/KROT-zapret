@@ -19,19 +19,29 @@ public sealed class MainWindowViewModel : ObservableObject, IDisposable
 {
     public const string ProjectRepositoryUrl = "https://github.com/morda-mir/KROT-zapret";
     public const string ZapretOfficialUrl = "https://github.com/bol-van/zapret";
+    private static readonly TimeSpan UpdateCheckInterval = TimeSpan.FromDays(1);
+    private static readonly TimeSpan UpdateNotificationInterval = TimeSpan.FromDays(3);
 
     private readonly KrotSettings _settings;
     private readonly ISettingsStore _settingsStore;
     private readonly ILocalizationService _localization;
     private readonly IServiceClient _serviceClient;
     private readonly RegistryAutoStartManager _autoStartManager;
+    private readonly IReleaseUpdateService _releaseUpdateService;
     private readonly ILogService _log;
     private readonly CancellationTokenSource _lifetime = new();
+    private readonly SemaphoreSlim _settingsSaveGate = new(1, 1);
+    private int _settingsRevision;
     private AppState _appState = AppState.Off;
+    private bool _isFakeRuntime;
+    private bool _externalTunnelDetected;
     private bool _isHelpOpen;
     private bool _autoStart;
     private bool _detailedLogs;
     private readonly Task _statusPollingTask;
+    private Task? _updatePollingTask;
+    private int _updateChecksStarted;
+    private ReleaseUpdateInfo? _availableUpdate;
     private ServiceSnapshot _lastSnapshot = new();
 
     public MainWindowViewModel(
@@ -40,6 +50,7 @@ public sealed class MainWindowViewModel : ObservableObject, IDisposable
         ILocalizationService localization,
         IServiceClient serviceClient,
         RegistryAutoStartManager autoStartManager,
+        IReleaseUpdateService releaseUpdateService,
         ILogService log)
     {
         _settings = settings;
@@ -47,17 +58,24 @@ public sealed class MainWindowViewModel : ObservableObject, IDisposable
         _localization = localization;
         _serviceClient = serviceClient;
         _autoStartManager = autoStartManager;
+        _releaseUpdateService = releaseUpdateService;
         _log = log;
         _autoStart = settings.AutoStart;
         _detailedLogs = settings.DetailedLogs;
 
         Services = CreateServices(settings);
-        ToggleRuntimeCommand = new AsyncRelayCommand(ToggleRuntimeAsync, () => !IsBusy);
+        ToggleRuntimeCommand = new AsyncRelayCommand(
+            ToggleRuntimeAsync,
+            CanToggleRuntime,
+            AsyncRelayCommandOptions.AllowConcurrentExecutions);
         ToggleHelpCommand = new RelayCommand(() => IsHelpOpen = !IsHelpOpen);
         SetRussianCommand = new RelayCommand(() => SetLanguage("ru"));
         SetEnglishCommand = new RelayCommand(() => SetLanguage("en"));
         OpenProjectRepositoryCommand = new RelayCommand(() => OpenUrl(ProjectRepositoryUrl));
         OpenZapretCommand = new RelayCommand(() => OpenUrl(ZapretOfficialUrl));
+        OpenAvailableUpdateCommand = new RelayCommand(
+            OpenAvailableUpdate,
+            () => AvailableUpdate != null);
 
         _localization.LanguageChanged += OnLanguageChanged;
         _serviceClient.SnapshotChanged += OnSnapshotChanged;
@@ -67,6 +85,8 @@ public sealed class MainWindowViewModel : ObservableObject, IDisposable
     }
 
     public event EventHandler? RequestOpenLogs;
+
+    public event EventHandler? RequestUpdateNotification;
 
     public ObservableCollection<ServiceItemViewModel> Services { get; }
 
@@ -82,9 +102,16 @@ public sealed class MainWindowViewModel : ObservableObject, IDisposable
 
     public IRelayCommand OpenZapretCommand { get; }
 
-    public string Title => _localization.Get("App.Title");
+    public IRelayCommand OpenAvailableUpdateCommand { get; }
+
+    public string Title => IsFakeRuntime
+        ? _localization.Get("App.Title") + " — DEMO"
+        : _localization.Get("App.Title");
 
     public string AutoStartText => _localization.Get("AutoStart");
+
+    public string VpnWarningText =>
+        _localization.Get("Warning.DisableVpnProxy");
 
     public string PrimaryActionText =>
         AppState switch
@@ -93,7 +120,7 @@ public sealed class MainWindowViewModel : ObservableObject, IDisposable
             AppState.Starting or
             AppState.TestingDirect or
             AppState.TestingSavedProfiles or
-            AppState.SearchingProfiles => _localization.Get("Action.Starting"),
+            AppState.SearchingProfiles => _localization.Get("Action.Cancel"),
             _ => _localization.Get("Action.Disable")
         };
 
@@ -111,7 +138,51 @@ public sealed class MainWindowViewModel : ObservableObject, IDisposable
 
     public string LicensesText => _localization.Get("Menu.Licenses");
 
-    public string VersionText => _localization.Get("Menu.Version");
+    public string VersionText =>
+        $"{_localization.Get("Menu.Version")} {ApplicationVersionProvider.Current}";
+
+    public ReleaseUpdateInfo? AvailableUpdate
+    {
+        get => _availableUpdate;
+        private set
+        {
+            if (!SetProperty(ref _availableUpdate, value))
+            {
+                return;
+            }
+
+            OnPropertyChanged(nameof(HasAvailableUpdate));
+            OnPropertyChanged(nameof(UpdateTooltipTitle));
+            OnPropertyChanged(nameof(UpdateTooltipDescription));
+            OnPropertyChanged(nameof(UpdateTooltipAction));
+            OpenAvailableUpdateCommand.NotifyCanExecuteChanged();
+        }
+    }
+
+    public bool HasAvailableUpdate => AvailableUpdate != null;
+
+    public string UpdateTooltipTitle => AvailableUpdate == null
+        ? string.Empty
+        : string.Format(
+            _localization.Get("Update.Available"),
+            AvailableUpdate.VersionTag);
+
+    public string UpdateTooltipDescription => AvailableUpdate == null
+        ? string.Empty
+        : string.IsNullOrWhiteSpace(AvailableUpdate.Description)
+            ? _localization.Get("Update.NoDescription")
+            : AvailableUpdate.Description;
+
+    public string UpdateTooltipAction => _localization.Get("Update.OpenRelease");
+
+    public string UpdateNotificationTitle =>
+        _localization.Get("Update.Tray.Title");
+
+    public string UpdateNotificationText => AvailableUpdate == null
+        ? string.Empty
+        : string.Format(
+            _localization.Get("Update.Tray.Text"),
+            AvailableUpdate.VersionTag);
 
     public AppState AppState
     {
@@ -135,7 +206,29 @@ public sealed class MainWindowViewModel : ObservableObject, IDisposable
 
     public bool IsRunning => AppState is AppState.Running or AppState.PartialFailure;
 
+    public bool IsFakeRuntime
+    {
+        get => _isFakeRuntime;
+        private set
+        {
+            if (SetProperty(ref _isFakeRuntime, value))
+            {
+                OnPropertyChanged(nameof(Title));
+            }
+        }
+    }
+
+    public bool ExternalTunnelDetected
+    {
+        get => _externalTunnelDetected;
+        private set => SetProperty(ref _externalTunnelDetected, value);
+    }
+
     public bool IsBusy => AppState is not (AppState.Off or AppState.Running or AppState.PartialFailure or AppState.FatalError);
+
+    public bool HasBusyChannels =>
+        Services.SelectMany(service => service.Channels)
+            .Any(channel => channel.IsBusy);
 
     public bool IsConfigurationEditable => AppState is AppState.Off or AppState.FatalError;
 
@@ -176,7 +269,16 @@ public sealed class MainWindowViewModel : ObservableObject, IDisposable
             if (SetProperty(ref _detailedLogs, value))
             {
                 _settings.DetailedLogs = value;
+                if (_log is IConfigurableLogService configurableLog)
+                {
+                    configurableLog.Detailed = value;
+                }
+
                 _ = SaveSettingsSafeAsync();
+                if (AppState is not (AppState.Off or AppState.FatalError))
+                {
+                    _ = SetServiceDetailedLogsSafeAsync(value);
+                }
             }
         }
     }
@@ -191,18 +293,30 @@ public sealed class MainWindowViewModel : ObservableObject, IDisposable
 
     public void OpenLogs() => RequestOpenLogs?.Invoke(this, EventArgs.Empty);
 
+    public void StartUpdateChecks()
+    {
+        if (Interlocked.CompareExchange(ref _updateChecksStarted, 1, 0) != 0)
+        {
+            return;
+        }
+
+        _updatePollingTask = PollForUpdatesAsync(_lifetime.Token);
+    }
+
     public async Task StopForExitAsync()
     {
+        await SaveSettingsSafeAsync(CancellationToken.None);
+        _lifetime.Cancel();
         try
         {
-            if (AppState != AppState.Off)
-            {
-                await _serviceClient.StopAsync(CancellationToken.None);
-            }
+            await _serviceClient.ShutdownAsync(CancellationToken.None);
         }
         catch (Exception ex)
         {
-            _log.Error("exit.stop.failed", "Failed to stop runtime during exit.", ex);
+            _log.Error(
+                "exit.shutdown.failed",
+                "Failed to stop the runtime service during exit.",
+                ex);
         }
     }
 
@@ -213,13 +327,98 @@ public sealed class MainWindowViewModel : ObservableObject, IDisposable
         _lifetime.Cancel();
         _lifetime.Dispose();
         GC.KeepAlive(_statusPollingTask);
+        GC.KeepAlive(_updatePollingTask);
+    }
+
+    private void OpenAvailableUpdate()
+    {
+        if (AvailableUpdate != null)
+        {
+            OpenUrl(AvailableUpdate.ReleaseUrl);
+        }
+    }
+
+    private async Task PollForUpdatesAsync(CancellationToken cancellationToken)
+    {
+        while (!cancellationToken.IsCancellationRequested)
+        {
+            try
+            {
+                var update = await _releaseUpdateService
+                    .CheckForUpdateAsync(
+                        ApplicationVersionProvider.Current,
+                        cancellationToken)
+                    .ConfigureAwait(false);
+                ApplyAvailableUpdateOnUiThread(update);
+            }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+            {
+                return;
+            }
+            catch (Exception ex)
+            {
+                _log.Detail(
+                    "update.check.failed",
+                    $"Update check failed: {ex.GetType().Name}: {ex.Message}");
+            }
+
+            try
+            {
+                await Task.Delay(UpdateCheckInterval, cancellationToken)
+                    .ConfigureAwait(false);
+            }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+            {
+                return;
+            }
+        }
+    }
+
+    private void ApplyAvailableUpdateOnUiThread(ReleaseUpdateInfo? update)
+    {
+        var dispatcher = Application.Current?.Dispatcher;
+        if (dispatcher != null && !dispatcher.CheckAccess())
+        {
+            dispatcher.BeginInvoke(new Action(() => ApplyAvailableUpdate(update)));
+            return;
+        }
+
+        ApplyAvailableUpdate(update);
+    }
+
+    private void ApplyAvailableUpdate(ReleaseUpdateInfo? update)
+    {
+        AvailableUpdate = update;
+        if (update == null)
+        {
+            return;
+        }
+
+        var now = DateTime.UtcNow;
+        var notificationIsDue =
+            !string.Equals(
+                _settings.LastUpdateNotificationVersion,
+                update.VersionTag,
+                StringComparison.OrdinalIgnoreCase)
+            || !_settings.LastUpdateNotificationUtc.HasValue
+            || now - _settings.LastUpdateNotificationUtc.Value.ToUniversalTime()
+            >= UpdateNotificationInterval;
+        if (!notificationIsDue)
+        {
+            return;
+        }
+
+        _settings.LastUpdateNotificationVersion = update.VersionTag;
+        _settings.LastUpdateNotificationUtc = now;
+        _ = SaveSettingsSafeAsync();
+        RequestUpdateNotification?.Invoke(this, EventArgs.Empty);
     }
 
     private async Task ToggleRuntimeAsync()
     {
         try
         {
-            if (IsRunning || AppState == AppState.FatalError)
+            if (AppState is not (AppState.Off or AppState.FatalError))
             {
                 AppState = AppState.Stopping;
                 UpdateChannelStates(new ServiceSnapshot { AppState = AppState.Stopping });
@@ -227,6 +426,11 @@ public sealed class MainWindowViewModel : ObservableObject, IDisposable
             }
             else
             {
+                if (AppState == AppState.FatalError)
+                {
+                    await _serviceClient.StopAsync(_lifetime.Token);
+                }
+
                 AppState = AppState.Starting;
                 UpdateChannelStates(new ServiceSnapshot { AppState = AppState.Starting });
                 var options = new KrotStartOptions
@@ -248,6 +452,11 @@ public sealed class MainWindowViewModel : ObservableObject, IDisposable
         }
     }
 
+    private bool CanToggleRuntime() =>
+        AppState != AppState.Stopping
+        && (AppState is not (AppState.Off or AppState.FatalError)
+            || Services.Any(service => service.IsSelected));
+
     private void OnSnapshotChanged(object? sender, ServiceSnapshot snapshot)
     {
         var dispatcher = Application.Current?.Dispatcher;
@@ -263,6 +472,8 @@ public sealed class MainWindowViewModel : ObservableObject, IDisposable
     private void ApplySnapshot(ServiceSnapshot snapshot)
     {
         _lastSnapshot = snapshot;
+        IsFakeRuntime = snapshot.IsFakeRuntime;
+        ExternalTunnelDetected = snapshot.ExternalTunnelDetected;
         AppState = snapshot.AppState;
         UpdateChannelStates(snapshot);
     }
@@ -299,6 +510,7 @@ public sealed class MainWindowViewModel : ObservableObject, IDisposable
         }
 
         OnPropertyChanged(nameof(Services));
+        OnPropertyChanged(nameof(HasBusyChannels));
     }
 
     private async Task PollServiceStatusAsync(CancellationToken cancellationToken)
@@ -307,12 +519,6 @@ public sealed class MainWindowViewModel : ObservableObject, IDisposable
         {
             try
             {
-                if (IsBusy)
-                {
-                    await Task.Delay(TimeSpan.FromSeconds(1), cancellationToken);
-                    continue;
-                }
-
                 var snapshot = await _serviceClient
                     .GetStatusAsync(cancellationToken);
                 OnSnapshotChanged(this, snapshot);
@@ -404,13 +610,48 @@ public sealed class MainWindowViewModel : ObservableObject, IDisposable
 
         _ = SaveSettingsSafeAsync();
         UpdateChannelStates(_lastSnapshot);
+        ToggleRuntimeCommand.NotifyCanExecuteChanged();
     }
 
-    private async Task SaveSettingsSafeAsync()
+    private Task SaveSettingsSafeAsync() =>
+        SaveSettingsSafeAsync(_lifetime.Token);
+
+    private async Task SetServiceDetailedLogsSafeAsync(bool enabled)
     {
         try
         {
-            await _settingsStore.SaveAsync(_settings, _lifetime.Token);
+            await _serviceClient.SetDetailedLogsAsync(enabled, _lifetime.Token);
+        }
+        catch (OperationCanceledException) when (_lifetime.IsCancellationRequested)
+        {
+        }
+        catch (Exception ex)
+        {
+            _log.Error(
+                "logging.detail.update.failed",
+                "Failed to update service detailed logging.",
+                ex);
+        }
+    }
+
+    private async Task SaveSettingsSafeAsync(CancellationToken cancellationToken)
+    {
+        var snapshot = CloneSettings(_settings);
+        var revision = Interlocked.Increment(ref _settingsRevision);
+        try
+        {
+            await _settingsSaveGate.WaitAsync(cancellationToken);
+            try
+            {
+                if (revision == Volatile.Read(ref _settingsRevision))
+                {
+                    await _settingsStore.SaveAsync(snapshot, cancellationToken);
+                }
+            }
+            finally
+            {
+                _settingsSaveGate.Release();
+            }
         }
         catch (OperationCanceledException)
         {
@@ -421,6 +662,24 @@ public sealed class MainWindowViewModel : ObservableObject, IDisposable
             _log.Error("settings.save.failed", "Failed to save settings.", ex);
         }
     }
+
+    private static KrotSettings CloneSettings(KrotSettings settings) => new()
+    {
+        SchemaVersion = settings.SchemaVersion,
+        Language = settings.Language,
+        AutoStart = settings.AutoStart,
+        RestoreEnabledState = settings.RestoreEnabledState,
+        DetailedLogs = settings.DetailedLogs,
+        LastUpdateNotificationVersion = settings.LastUpdateNotificationVersion,
+        LastUpdateNotificationUtc = settings.LastUpdateNotificationUtc,
+        Services = settings.Services
+            .Select(service => new ServiceSelection
+            {
+                Id = service.Id,
+                IsEnabled = service.IsEnabled
+            })
+            .ToList()
+    };
 
     private void SetLanguage(string language)
     {
@@ -443,6 +702,7 @@ public sealed class MainWindowViewModel : ObservableObject, IDisposable
 
         OnPropertyChanged(nameof(Title));
         OnPropertyChanged(nameof(AutoStartText));
+        OnPropertyChanged(nameof(VpnWarningText));
         OnPropertyChanged(nameof(PrimaryActionText));
         OnPropertyChanged(nameof(LanguageText));
         OnPropertyChanged(nameof(LogsText));
@@ -456,10 +716,38 @@ public sealed class MainWindowViewModel : ObservableObject, IDisposable
         OnPropertyChanged(nameof(TrayOpenText));
         OnPropertyChanged(nameof(TrayExitText));
         OnPropertyChanged(nameof(TrayToggleText));
+        OnPropertyChanged(nameof(UpdateTooltipTitle));
+        OnPropertyChanged(nameof(UpdateTooltipDescription));
+        OnPropertyChanged(nameof(UpdateTooltipAction));
+        OnPropertyChanged(nameof(UpdateNotificationTitle));
+        OnPropertyChanged(nameof(UpdateNotificationText));
     }
 
     private void RefreshChannelTooltip(ChannelIndicatorViewModel channel)
     {
+        if (channel.State == ChannelState.Failed)
+        {
+            channel.Tooltip = _localization.Get("Channel.Error.Logs");
+            return;
+        }
+
+        if (string.Equals(channel.Id, "voice", StringComparison.Ordinal))
+        {
+            if (channel.State == ChannelState.WaitingForActivity)
+            {
+                channel.Tooltip =
+                    _localization.Get("Channel.Discord.Voice.Waiting");
+                return;
+            }
+
+            if (channel.State is ChannelState.Testing or ChannelState.Searching)
+            {
+                channel.Tooltip =
+                    _localization.Get("Channel.Discord.Voice.Checking");
+                return;
+            }
+        }
+
         channel.Tooltip = _localization.Get(channel.TooltipKey);
     }
 

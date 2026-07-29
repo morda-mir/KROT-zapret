@@ -12,6 +12,10 @@ public sealed class NetworkFingerprint
 
     public string GatewayMac { get; set; } = string.Empty;
 
+    public IReadOnlyList<string> Gateways { get; set; } = Array.Empty<string>();
+
+    public IReadOnlyList<string> NetworkPrefixes { get; set; } = Array.Empty<string>();
+
     public IReadOnlyList<string> DnsServers { get; set; } = Array.Empty<string>();
 
     public bool HasIpv4 { get; set; }
@@ -23,8 +27,9 @@ public sealed class NetworkFingerprint
             AdapterId.Trim().ToUpperInvariant(),
             ConnectionType.Trim().ToUpperInvariant(),
             GatewayMac.Replace("-", string.Empty).Replace(":", string.Empty).ToUpperInvariant(),
+            string.Join(",", Gateways.OrderBy(x => x, StringComparer.OrdinalIgnoreCase)),
+            string.Join(",", NetworkPrefixes.OrderBy(x => x, StringComparer.OrdinalIgnoreCase)),
             string.Join(",", DnsServers.OrderBy(x => x, StringComparer.OrdinalIgnoreCase)),
             HasIpv4 ? "4" : "-",
             HasIpv6 ? "6" : "-");
 }
-

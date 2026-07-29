@@ -7,7 +7,7 @@ public sealed class FieldTestReport
 {
     public int SchemaVersion { get; set; } = 1;
 
-    public string KrotVersion { get; set; } = "0.1.0-alpha";
+    public string KrotVersion { get; set; } = "1.0";
 
     public DateTime StartedUtc { get; set; }
 
@@ -91,4 +91,3 @@ public sealed class FieldTestProgress
 
     public string Message { get; set; } = string.Empty;
 }
-

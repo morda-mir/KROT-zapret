@@ -17,6 +17,12 @@ public sealed class ServiceEngine
     private static readonly TimeSpan HealthCheckInterval = TimeSpan.FromSeconds(90);
     private static readonly TimeSpan NetworkChangeSettleDelay = TimeSpan.FromSeconds(2);
     private static readonly TimeSpan NetworkRecoveryDelay = TimeSpan.FromSeconds(8);
+    private static readonly TimeSpan ExternalTunnelCheckInterval =
+        TimeSpan.FromSeconds(3);
+    private static readonly TimeSpan TcpCheckIndicatorDuration =
+        TimeSpan.FromSeconds(4);
+    private static readonly TimeSpan DefaultUdpConfirmationTimeout =
+        TimeSpan.FromSeconds(15);
     private readonly IZapretProcessManager _processManager;
     private readonly BuiltInPresetCatalog _presetCatalog;
     private readonly AdaptivePresetSearchEngine _presetSearch;
@@ -24,10 +30,14 @@ public sealed class ServiceEngine
     private readonly IInternetAvailabilityProbe _internetProbe;
     private readonly ILogService _log;
     private readonly bool _isFakeRuntime;
+    private readonly TimeSpan _udpConfirmationTimeout;
     private readonly SemaphoreSlim _gate = new(1, 1);
     private readonly SemaphoreSlim _healthSignal = new(0, 1);
     private readonly AppStateMachine _stateMachine = new();
+    private readonly object _healthSync = new();
     private readonly object _sessionSync = new();
+    private readonly object _startSync = new();
+    private CancellationTokenSource? _activeStartCancellation;
     private CancellationTokenSource? _healthCancellation;
     private Task? _healthTask;
     private bool _networkChangeSubscribed;
@@ -35,9 +45,18 @@ public sealed class ServiceEngine
     private string? _activeNetworkFingerprint;
     private PresetSelection? _activeSelection;
     private readonly Dictionary<ServiceId, bool?> _tcpReachability = new();
+    private readonly Dictionary<ServiceId, DateTime> _tcpCheckingUntilUtc = new();
     private readonly HashSet<string> _confirmedUdpChannels =
         new(StringComparer.Ordinal);
+    private readonly HashSet<string> _activeUdpChannels =
+        new(StringComparer.Ordinal);
+    private readonly HashSet<string> _failedUdpChannels =
+        new(StringComparer.Ordinal);
+    private readonly Dictionary<string, long> _udpAttemptGenerations =
+        new(StringComparer.Ordinal);
+    private long _nextUdpAttemptGeneration;
     private bool _internetUnavailable;
+    private bool _externalTunnelDetected;
 
     public ServiceEngine(
         IZapretProcessManager processManager,
@@ -46,7 +65,8 @@ public sealed class ServiceEngine
         NetworkEnvironmentInspector networkInspector,
         IInternetAvailabilityProbe internetProbe,
         ILogService log,
-        bool isFakeRuntime)
+        bool isFakeRuntime,
+        TimeSpan? udpConfirmationTimeout = null)
     {
         _processManager = processManager;
         _presetCatalog = presetCatalog;
@@ -55,6 +75,15 @@ public sealed class ServiceEngine
         _internetProbe = internetProbe;
         _log = log;
         _isFakeRuntime = isFakeRuntime;
+        _udpConfirmationTimeout =
+            udpConfirmationTimeout ?? DefaultUdpConfirmationTimeout;
+        if (_udpConfirmationTimeout <= TimeSpan.Zero)
+        {
+            throw new ArgumentOutOfRangeException(
+                nameof(udpConfirmationTimeout),
+                "UDP confirmation timeout must be positive.");
+        }
+
         if (_processManager is IRuntimeOutputSource outputSource)
         {
             outputSource.RuntimeOutput += OnRuntimeOutput;
@@ -67,9 +96,25 @@ public sealed class ServiceEngine
         KrotStartOptions options,
         CancellationToken cancellationToken)
     {
-        await _gate.WaitAsync(cancellationToken).ConfigureAwait(false);
+        var startCancellation =
+            CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        lock (_startSync)
+        {
+            if (_activeStartCancellation != null)
+            {
+                startCancellation.Dispose();
+                throw new InvalidOperationException(
+                    "A runtime start operation is already in progress.");
+            }
+
+            _activeStartCancellation = startCancellation;
+        }
+
+        var gateHeld = false;
         try
         {
+            await _gate.WaitAsync(startCancellation.Token).ConfigureAwait(false);
+            gateHeld = true;
             if (_stateMachine.State != AppState.Off)
             {
                 return;
@@ -77,6 +122,11 @@ public sealed class ServiceEngine
 
             _stateMachine.TransitionTo(AppState.Starting);
             SetActiveSession(options, null, null, null);
+            if (_log is IConfigurableLogService configurableLog)
+            {
+                configurableLog.Detailed = options.DetailedLogs;
+            }
+
             _log.Info(
                 "runtime.starting",
                 $"Starting KROT runtime for {options.Services.Count} selected service(s).");
@@ -87,6 +137,7 @@ public sealed class ServiceEngine
             string? networkFingerprint = null;
             PresetSelection? selection = null;
             IReadOnlyDictionary<ServiceId, bool?>? tcpReachability = null;
+            var externalTunnelDetected = false;
             if (_isFakeRuntime)
             {
                 plan = _presetCatalog.Build(options);
@@ -100,7 +151,7 @@ public sealed class ServiceEngine
                 if (plan.HasMain)
                 {
                     await _processManager
-                        .StartMainAsync(plan.MainArguments, cancellationToken)
+                        .StartMainAsync(plan.MainArguments, startCancellation.Token)
                         .ConfigureAwait(false);
                 }
             }
@@ -108,13 +159,14 @@ public sealed class ServiceEngine
             {
                 var network = _networkInspector.Inspect();
                 networkFingerprint = network.FingerprintSha256;
+                externalTunnelDetected = network.VpnLikely;
                 var outcome = await _presetSearch
                     .StartMainAsync(
                         options,
                         network.FingerprintSha256,
                         allowSearch: !network.VpnLikely,
                         OnPresetSearchStageChanged,
-                        cancellationToken)
+                        startCancellation.Token)
                     .ConfigureAwait(false);
                 plan = outcome.Plan;
                 allTcpReachable = outcome.AllTcpReachable;
@@ -126,14 +178,16 @@ public sealed class ServiceEngine
                 options,
                 networkFingerprint,
                 selection,
-                tcpReachability);
+                tcpReachability,
+                externalTunnelDetected);
             if (plan.HasVoice)
             {
                 await _processManager
-                    .StartVoiceAsync(plan.VoiceArguments, cancellationToken)
+                    .StartVoiceAsync(plan.VoiceArguments, startCancellation.Token)
                     .ConfigureAwait(false);
             }
 
+            startCancellation.Token.ThrowIfCancellationRequested();
             _stateMachine.TransitionTo(
                 allTcpReachable ? AppState.Running : AppState.PartialFailure);
             _log.Info(
@@ -141,17 +195,22 @@ public sealed class ServiceEngine
                 $"KROT runtime active. presets={string.Join(",", plan.PresetIds)}.");
             if (!_isFakeRuntime)
             {
-                StartHealthMonitor();
+                await StartHealthMonitorAsync().ConfigureAwait(false);
             }
         }
         catch (OperationCanceledException)
         {
-            await StopCoreAsync(CancellationToken.None).ConfigureAwait(false);
+            await CancelHealthMonitorAsync().ConfigureAwait(false);
+            if (gateHeld)
+            {
+                await StopCoreAsync(CancellationToken.None).ConfigureAwait(false);
+            }
+
             throw;
         }
         catch (Exception ex)
         {
-            CancelHealthMonitor();
+            await CancelHealthMonitorAsync().ConfigureAwait(false);
             ClearActiveSession();
             _log.Error("runtime.start.failed", "Failed to start KROT runtime.", ex);
             try
@@ -177,7 +236,20 @@ public sealed class ServiceEngine
         }
         finally
         {
-            _gate.Release();
+            if (gateHeld)
+            {
+                _gate.Release();
+            }
+
+            lock (_startSync)
+            {
+                if (ReferenceEquals(_activeStartCancellation, startCancellation))
+                {
+                    _activeStartCancellation = null;
+                }
+            }
+
+            startCancellation.Dispose();
         }
     }
 
@@ -202,10 +274,16 @@ public sealed class ServiceEngine
 
     public async Task StopAsync(CancellationToken cancellationToken)
     {
-        CancelHealthMonitor();
+        lock (_startSync)
+        {
+            _activeStartCancellation?.Cancel();
+        }
+
+        await CancelHealthMonitorAsync().ConfigureAwait(false);
         await _gate.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
         {
+            await CancelHealthMonitorAsync().ConfigureAwait(false);
             await StopCoreAsync(cancellationToken).ConfigureAwait(false);
         }
         finally
@@ -235,13 +313,88 @@ public sealed class ServiceEngine
     private void OnRuntimeOutput(object? sender, RuntimeOutputEvent eventArgs)
     {
         if (eventArgs.IsError
-            || !string.Equals(eventArgs.Role, "voice", StringComparison.OrdinalIgnoreCase)
-            || !UdpWinnerMarkerParser.TryParse(eventArgs.Line, out var marker))
+            || !string.Equals(
+                eventArgs.Role,
+                "voice",
+                StringComparison.OrdinalIgnoreCase))
         {
             return;
         }
 
-        _ = RememberUdpWinnerAsync(marker);
+        if (UdpActivityMarkerParser.TryParse(
+                eventArgs.Line,
+                out var activityMarker))
+        {
+            RememberUdpActivity(activityMarker);
+            return;
+        }
+
+        if (UdpWinnerMarkerParser.TryParse(eventArgs.Line, out var winnerMarker))
+        {
+            _ = RememberUdpWinnerAsync(winnerMarker);
+        }
+    }
+
+    private void RememberUdpActivity(UdpActivityMarker marker)
+    {
+        if (!string.Equals(
+                marker.Channel,
+                "discord_voice",
+                StringComparison.Ordinal))
+        {
+            return;
+        }
+
+        long generation;
+        lock (_sessionSync)
+        {
+            if (_activeOptions == null
+                || !_activeOptions.Services.Contains(ServiceId.Discord)
+                || _activeOptions.SkipVoice
+                || _confirmedUdpChannels.Contains(marker.Channel))
+            {
+                return;
+            }
+
+            _activeUdpChannels.Add(marker.Channel);
+            _failedUdpChannels.Remove(marker.Channel);
+            generation = ++_nextUdpAttemptGeneration;
+            _udpAttemptGenerations[marker.Channel] = generation;
+        }
+
+        _log.Detail(
+            "preset.udp.activity",
+            "Discord voice traffic detected; checking adaptive strategies.");
+        _ = MarkUdpFailureAfterTimeoutAsync(marker.Channel, generation);
+    }
+
+    private async Task MarkUdpFailureAfterTimeoutAsync(
+        string channel,
+        long generation)
+    {
+        await Task.Delay(_udpConfirmationTimeout).ConfigureAwait(false);
+
+        lock (_sessionSync)
+        {
+            if (_activeOptions == null
+                || _confirmedUdpChannels.Contains(channel)
+                || !_activeUdpChannels.Contains(channel)
+                || !_udpAttemptGenerations.TryGetValue(
+                    channel,
+                    out var currentGeneration)
+                || currentGeneration != generation)
+            {
+                return;
+            }
+
+            _activeUdpChannels.Remove(channel);
+            _failedUdpChannels.Add(channel);
+            _udpAttemptGenerations.Remove(channel);
+        }
+
+        _log.Info(
+            "preset.udp.failed",
+            "Discord voice traffic was detected, but no strategy was confirmed. See detailed logs.");
     }
 
     private async Task RememberUdpWinnerAsync(UdpWinnerMarker marker)
@@ -252,13 +405,21 @@ public sealed class ServiceEngine
             PresetSelection? selection;
             lock (_sessionSync)
             {
+                if (_activeOptions == null)
+                {
+                    return;
+                }
+
+                _confirmedUdpChannels.Add(marker.Channel);
+                _activeUdpChannels.Remove(marker.Channel);
+                _failedUdpChannels.Remove(marker.Channel);
+                _udpAttemptGenerations.Remove(marker.Channel);
                 if (_activeSelection == null
                     || string.IsNullOrWhiteSpace(_activeNetworkFingerprint))
                 {
                     return;
                 }
 
-                _confirmedUdpChannels.Add(marker.Channel);
                 var current = marker.Channel == "youtube_quic"
                     ? _activeSelection.YouTubeQuic
                     : _activeSelection.DiscordVoice;
@@ -296,47 +457,64 @@ public sealed class ServiceEngine
         }
     }
 
-    private void StartHealthMonitor()
+    private async Task StartHealthMonitorAsync()
     {
-        CancelHealthMonitor();
+        await CancelHealthMonitorAsync().ConfigureAwait(false);
         while (_healthSignal.Wait(0))
         {
         }
 
         var cancellation = new CancellationTokenSource();
-        _healthCancellation = cancellation;
-        NetworkChange.NetworkAddressChanged += OnNetworkAddressChanged;
-        _networkChangeSubscribed = true;
-        _healthTask = MonitorHealthAsync(cancellation.Token);
+        lock (_healthSync)
+        {
+            _healthCancellation = cancellation;
+            NetworkChange.NetworkAddressChanged += OnNetworkAddressChanged;
+            _networkChangeSubscribed = true;
+            _healthTask = Task.WhenAll(
+                MonitorHealthAsync(cancellation.Token),
+                MonitorExternalTunnelAsync(cancellation.Token));
+        }
     }
 
-    private void CancelHealthMonitor()
+    private async Task CancelHealthMonitorAsync()
     {
-        if (_networkChangeSubscribed)
+        CancellationTokenSource? cancellation;
+        Task? task;
+        lock (_healthSync)
         {
-            NetworkChange.NetworkAddressChanged -= OnNetworkAddressChanged;
-            _networkChangeSubscribed = false;
+            if (_networkChangeSubscribed)
+            {
+                NetworkChange.NetworkAddressChanged -= OnNetworkAddressChanged;
+                _networkChangeSubscribed = false;
+            }
+
+            cancellation = _healthCancellation;
+            task = _healthTask;
+            _healthCancellation = null;
+            _healthTask = null;
         }
 
-        var cancellation = Interlocked.Exchange(ref _healthCancellation, null);
-        var task = Interlocked.Exchange(ref _healthTask, null);
         if (cancellation == null)
         {
             return;
         }
 
         cancellation.Cancel();
-        if (task == null || task.IsCompleted)
+        try
+        {
+            if (task != null)
+            {
+                await task.ConfigureAwait(false);
+            }
+        }
+        catch (OperationCanceledException)
+        {
+            // Monitor cancellation is the expected shutdown path.
+        }
+        finally
         {
             cancellation.Dispose();
-            return;
         }
-
-        _ = task.ContinueWith(
-            _ => cancellation.Dispose(),
-            CancellationToken.None,
-            TaskContinuationOptions.ExecuteSynchronously,
-            TaskScheduler.Default);
     }
 
     private void OnNetworkAddressChanged(object? sender, EventArgs eventArgs)
@@ -383,6 +561,7 @@ public sealed class ServiceEngine
                 }
 
                 var network = _networkInspector.Inspect();
+                SetExternalTunnelDetected(network.VpnLikely);
                 if (network.VpnLikely)
                 {
                     failures.Clear();
@@ -408,6 +587,7 @@ public sealed class ServiceEngine
                         .Delay(NetworkRecoveryDelay, cancellationToken)
                         .ConfigureAwait(false);
                     network = _networkInspector.Inspect();
+                    SetExternalTunnelDetected(network.VpnLikely);
                     if (network.VpnLikely)
                     {
                         continue;
@@ -432,6 +612,7 @@ public sealed class ServiceEngine
                         serviceId is ServiceId.Discord or ServiceId.YouTube)
                     .Distinct()
                     .ToArray();
+                BeginTcpReachabilityCheck(services);
                 var results = await _presetSearch
                     .ProbeTcpAsync(services, cancellationToken)
                     .ConfigureAwait(false);
@@ -483,11 +664,90 @@ public sealed class ServiceEngine
         }
     }
 
+    private async Task MonitorExternalTunnelAsync(
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            while (!cancellationToken.IsCancellationRequested)
+            {
+                await Task
+                    .Delay(ExternalTunnelCheckInterval, cancellationToken)
+                    .ConfigureAwait(false);
+
+                lock (_sessionSync)
+                {
+                    if (_activeOptions == null)
+                    {
+                        return;
+                    }
+                }
+
+                var detected = _networkInspector.Inspect().VpnLikely;
+                var changed = SetExternalTunnelDetected(detected);
+                if (changed && !detected)
+                {
+                    OnNetworkAddressChanged(this, EventArgs.Empty);
+                }
+            }
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+        }
+        catch (Exception ex)
+        {
+            _log.Error(
+                "network.external-tunnel.monitor.failed",
+                "VPN and system proxy monitoring failed.",
+                ex);
+        }
+    }
+
     private void SetInternetUnavailable(bool unavailable)
     {
         lock (_sessionSync)
         {
             _internetUnavailable = unavailable;
+        }
+    }
+
+    private bool SetExternalTunnelDetected(bool detected)
+    {
+        var changed = false;
+        lock (_sessionSync)
+        {
+            if (_externalTunnelDetected != detected)
+            {
+                _externalTunnelDetected = detected;
+                changed = true;
+            }
+        }
+
+        if (changed)
+        {
+            _log.Info(
+                detected
+                    ? "network.external-tunnel.detected"
+                    : "network.external-tunnel.cleared",
+                detected
+                    ? "VPN or system proxy detected."
+                    : "VPN or system proxy is no longer detected.");
+        }
+
+        return changed;
+    }
+
+    private void BeginTcpReachabilityCheck(
+        IEnumerable<ServiceId> services)
+    {
+        var visibleUntilUtc =
+            DateTime.UtcNow + TcpCheckIndicatorDuration;
+        lock (_sessionSync)
+        {
+            foreach (var serviceId in services)
+            {
+                _tcpCheckingUntilUtc[serviceId] = visibleUntilUtc;
+            }
         }
     }
 
@@ -561,7 +821,8 @@ public sealed class ServiceEngine
                 options,
                 network.FingerprintSha256,
                 outcome.Selection,
-                outcome.TcpReachability);
+                outcome.TcpReachability,
+                network.VpnLikely);
             if (outcome.Plan.HasVoice)
             {
                 await _processManager
@@ -607,7 +868,8 @@ public sealed class ServiceEngine
         KrotStartOptions options,
         string? networkFingerprint,
         PresetSelection? selection,
-        IReadOnlyDictionary<ServiceId, bool?>? tcpReachability)
+        IReadOnlyDictionary<ServiceId, bool?>? tcpReachability,
+        bool externalTunnelDetected = false)
     {
         lock (_sessionSync)
         {
@@ -615,6 +877,7 @@ public sealed class ServiceEngine
             _activeNetworkFingerprint = networkFingerprint;
             _activeSelection = selection?.Clone();
             _tcpReachability.Clear();
+            _tcpCheckingUntilUtc.Clear();
             if (tcpReachability != null)
             {
                 foreach (var item in tcpReachability)
@@ -624,7 +887,11 @@ public sealed class ServiceEngine
             }
 
             _confirmedUdpChannels.Clear();
+            _activeUdpChannels.Clear();
+            _failedUdpChannels.Clear();
+            _udpAttemptGenerations.Clear();
             _internetUnavailable = false;
+            _externalTunnelDetected = externalTunnelDetected;
         }
     }
 
@@ -636,8 +903,13 @@ public sealed class ServiceEngine
             _activeNetworkFingerprint = null;
             _activeSelection = null;
             _tcpReachability.Clear();
+            _tcpCheckingUntilUtc.Clear();
             _confirmedUdpChannels.Clear();
+            _activeUdpChannels.Clear();
+            _failedUdpChannels.Clear();
+            _udpAttemptGenerations.Clear();
             _internetUnavailable = false;
+            _externalTunnelDetected = false;
         }
     }
 
@@ -649,7 +921,8 @@ public sealed class ServiceEngine
             {
                 AppState = _stateMachine.State,
                 MessageKey = MessageKeyFor(_stateMachine.State),
-                IsFakeRuntime = _isFakeRuntime
+                IsFakeRuntime = _isFakeRuntime,
+                ExternalTunnelDetected = _externalTunnelDetected
             };
             if (_activeOptions == null)
             {
@@ -720,9 +993,29 @@ public sealed class ServiceEngine
                 return ChannelState.Disabled;
             }
 
-            return _confirmedUdpChannels.Contains("discord_voice")
-                ? ChannelState.WorkingPreset
+            if (_confirmedUdpChannels.Contains("discord_voice"))
+            {
+                return ChannelState.WorkingPreset;
+            }
+
+            if (_failedUdpChannels.Contains("discord_voice"))
+            {
+                return ChannelState.Failed;
+            }
+
+            return _activeUdpChannels.Contains("discord_voice")
+                ? ChannelState.Testing
                 : ChannelState.WaitingForActivity;
+        }
+
+        if (_tcpCheckingUntilUtc.TryGetValue(serviceId, out var checkingUntilUtc))
+        {
+            if (checkingUntilUtc > DateTime.UtcNow)
+            {
+                return ChannelState.Testing;
+            }
+
+            _tcpCheckingUntilUtc.Remove(serviceId);
         }
 
         if (serviceId == ServiceId.YouTube

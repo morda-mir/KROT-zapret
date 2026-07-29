@@ -12,6 +12,7 @@ namespace KROT.Service.Hosting;
 
 public sealed class PresetSelectionCacheStore : IPresetSelectionCache
 {
+    private const long MaxCacheBytes = 1024 * 1024;
     private readonly string _path;
     private readonly SemaphoreSlim _gate = new(1, 1);
 
@@ -98,6 +99,12 @@ public sealed class PresetSelectionCacheStore : IPresetSelectionCache
                 FileShare.Read,
                 4096,
                 useAsync: true);
+            if (stream.Length > MaxCacheBytes)
+            {
+                throw new InvalidDataException(
+                    "Preset cache exceeds the safe size limit.");
+            }
+
             using var reader = new StreamReader(stream, Encoding.UTF8, true);
             var json = await reader.ReadToEndAsync().ConfigureAwait(false);
             cancellationToken.ThrowIfCancellationRequested();
@@ -109,6 +116,10 @@ public sealed class PresetSelectionCacheStore : IPresetSelectionCache
             return new PresetCacheDocument();
         }
         catch (IOException)
+        {
+            return new PresetCacheDocument();
+        }
+        catch (InvalidDataException)
         {
             return new PresetCacheDocument();
         }

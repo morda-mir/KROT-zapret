@@ -319,6 +319,10 @@ public sealed class AdaptivePresetSearchEngineTests
         {
         }
 
+        public void Detail(string eventName, string message)
+        {
+        }
+
         public void Error(string eventName, string message, Exception? exception = null)
         {
         }

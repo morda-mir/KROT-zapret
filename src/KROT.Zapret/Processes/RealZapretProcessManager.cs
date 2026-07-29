@@ -3,12 +3,14 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
+using System.ServiceProcess;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using KROT.Core.Contracts;
 using KROT.Core.Models;
 using KROT.Zapret.Runtime;
+using Microsoft.Win32;
 using Newtonsoft.Json;
 
 namespace KROT.Zapret.Processes;
@@ -20,6 +22,9 @@ public sealed class RealZapretProcessManager :
 {
     private readonly object _sync = new();
     private readonly List<RuntimeProcessRecord> _owned = new();
+    private readonly Dictionary<Guid, Process> _processes = new();
+    private readonly HashSet<string> _verifiedDriverPaths =
+        new(StringComparer.OrdinalIgnoreCase);
     private readonly string _runtimeRoot;
     private readonly ILogService _log;
     private readonly WindowsJobObject _job = new();
@@ -63,8 +68,11 @@ public sealed class RealZapretProcessManager :
         await StartMainAsync(arguments, cancellationToken).ConfigureAwait(false);
     }
 
-    public Task StopMainAsync(CancellationToken cancellationToken) =>
-        StopRoleAsync("main", cancellationToken);
+    public async Task StopMainAsync(CancellationToken cancellationToken)
+    {
+        await StopRoleAsync("main", cancellationToken).ConfigureAwait(false);
+        TryStopOwnedWinDivertDriver();
+    }
 
     public async Task RestartVoiceAsync(
         IReadOnlyList<string> arguments,
@@ -87,6 +95,8 @@ public sealed class RealZapretProcessManager :
             cancellationToken.ThrowIfCancellationRequested();
             await StopRecordAsync(record).ConfigureAwait(false);
         }
+
+        TryStopOwnedWinDivertDriver();
     }
 
     public void Dispose()
@@ -98,9 +108,18 @@ public sealed class RealZapretProcessManager :
 
         _disposed = true;
         _job.Dispose();
+        Process[] processes;
         lock (_sync)
         {
             _owned.Clear();
+            processes = _processes.Values.ToArray();
+            _processes.Clear();
+        }
+
+        TryStopOwnedWinDivertDriver();
+        foreach (var process in processes)
+        {
+            process.Dispose();
         }
     }
 
@@ -123,6 +142,7 @@ public sealed class RealZapretProcessManager :
         }
 
         var runtime = LoadAndVerifyRuntime(runtimeKind);
+        ValidateReferencedFiles(arguments, runtime.VerifiedFiles);
         var marker = Guid.NewGuid();
         var startInfo = new ProcessStartInfo
         {
@@ -156,7 +176,7 @@ public sealed class RealZapretProcessManager :
             {
                 if (!string.IsNullOrWhiteSpace(eventArgs.Data))
                 {
-                    _log.Info($"winws.{role}.stdout", eventArgs.Data);
+                    _log.Detail($"winws.{role}.stdout", eventArgs.Data);
                     RuntimeOutput?.Invoke(
                         this,
                         new RuntimeOutputEvent
@@ -197,6 +217,7 @@ public sealed class RealZapretProcessManager :
             lock (_sync)
             {
                 _owned.Add(record);
+                _processes[record.OwnershipMarker] = process;
             }
 
             ownedRecord = record;
@@ -214,18 +235,28 @@ public sealed class RealZapretProcessManager :
         }
         catch
         {
+            try
+            {
+                if (started && !process.HasExited)
+                {
+                    process.Kill();
+                    process.WaitForExit(3000);
+                }
+            }
+            catch (InvalidOperationException)
+            {
+                // The process exited while startup cleanup was running.
+            }
+
             if (ownedRecord != null)
             {
                 RemoveRecord(ownedRecord);
             }
-
-            if (started && !process.HasExited)
+            else
             {
-                process.Kill();
-                process.WaitForExit(3000);
+                process.Dispose();
             }
 
-            process.Dispose();
             throw;
         }
     }
@@ -314,7 +345,8 @@ public sealed class RealZapretProcessManager :
         var sharedFiles = manifest.Files
             .Where(x => string.Equals(x.RuntimeId, "shared", StringComparison.OrdinalIgnoreCase))
             .ToList();
-        foreach (var entry in files.Concat(sharedFiles))
+        var verifiedEntries = files.Concat(sharedFiles).ToList();
+        foreach (var entry in verifiedEntries)
         {
             var path = SafePath(entry.RelativePath);
             if (!_integrityVerifier.Verify(path, entry.Sha256))
@@ -329,8 +361,15 @@ public sealed class RealZapretProcessManager :
             ?? throw new InvalidDataException(
                 $"{executableName} is not listed in the runtime manifest.");
         var executablePath = SafePath(executable.RelativePath);
-        RequireFile(Path.Combine(Path.GetDirectoryName(executablePath)!, "WinDivert.dll"));
-        RequireFile(Path.Combine(Path.GetDirectoryName(executablePath)!, "WinDivert64.sys"));
+        var executableDirectory = Path.GetDirectoryName(executablePath)!;
+        RequireFile(Path.Combine(executableDirectory, "WinDivert.dll"));
+        var driverPath = Path.Combine(executableDirectory, "WinDivert64.sys");
+        RequireFile(driverPath);
+        lock (_sync)
+        {
+            _verifiedDriverPaths.Add(Path.GetFullPath(driverPath));
+        }
+
         if (runtimeKind == RuntimeKind.Zapret2)
         {
             RequireFile(Path.Combine(Path.GetDirectoryName(executablePath)!, "lua", "zapret-lib.lua"));
@@ -349,8 +388,41 @@ public sealed class RealZapretProcessManager :
             ExecutablePath = executablePath,
             WorkingDirectory = Path.GetDirectoryName(executablePath)!,
             DependencyDirectory = Path.GetDirectoryName(cygwinPath)!,
-            ExecutableSha256 = executable.Sha256
+            ExecutableSha256 = executable.Sha256,
+            VerifiedFiles = new HashSet<string>(
+                verifiedEntries.Select(entry => SafePath(entry.RelativePath)),
+                StringComparer.OrdinalIgnoreCase)
         };
+    }
+
+    private static void ValidateReferencedFiles(
+        IEnumerable<string> arguments,
+        ISet<string> verifiedFiles)
+    {
+        foreach (var argument in arguments)
+        {
+            var markerIndex = argument.LastIndexOf('@');
+            var valueIndex = markerIndex >= 0
+                ? markerIndex
+                : argument.IndexOf('=');
+            if (valueIndex < 0 || valueIndex == argument.Length - 1)
+            {
+                continue;
+            }
+
+            var candidate = argument.Substring(valueIndex + 1);
+            if (!Path.IsPathRooted(candidate))
+            {
+                continue;
+            }
+
+            var fullPath = Path.GetFullPath(candidate);
+            if (!verifiedFiles.Contains(fullPath))
+            {
+                throw new InvalidDataException(
+                    $"Runtime input is not listed in the verified manifest: '{candidate}'.");
+            }
+        }
     }
 
     private string SafePath(string relativePath)
@@ -436,11 +508,103 @@ public sealed class RealZapretProcessManager :
 
     private void RemoveRecord(RuntimeProcessRecord record)
     {
+        Process? process = null;
         lock (_sync)
         {
             _owned.RemoveAll(x =>
                 x.ProcessId == record.ProcessId
                 && x.OwnershipMarker == record.OwnershipMarker);
+            if (_processes.TryGetValue(record.OwnershipMarker, out process))
+            {
+                _processes.Remove(record.OwnershipMarker);
+            }
+        }
+
+        process?.Dispose();
+    }
+
+    private void TryStopOwnedWinDivertDriver()
+    {
+        try
+        {
+            string? imagePath;
+            using (var serviceKey = Registry.LocalMachine.OpenSubKey(
+                       @"SYSTEM\CurrentControlSet\Services\WinDivert"))
+            {
+                imagePath = serviceKey?.GetValue("ImagePath") as string;
+            }
+
+            var normalizedPath = NormalizeDriverPath(imagePath);
+            if (normalizedPath == null)
+            {
+                return;
+            }
+
+            lock (_sync)
+            {
+                if (_owned.Count > 0
+                    || !_verifiedDriverPaths.Contains(normalizedPath))
+                {
+                    return;
+                }
+            }
+
+            using var controller = new ServiceController("WinDivert");
+            controller.Refresh();
+            if (controller.Status == ServiceControllerStatus.Stopped)
+            {
+                return;
+            }
+
+            if (controller.Status != ServiceControllerStatus.StopPending)
+            {
+                controller.Stop();
+            }
+
+            controller.WaitForStatus(
+                ServiceControllerStatus.Stopped,
+                TimeSpan.FromSeconds(5));
+            _log.Info(
+                "windivert.stopped",
+                "Stopped the KROT-owned WinDivert kernel driver.");
+        }
+        catch (InvalidOperationException)
+        {
+            // The driver service is not installed or already disappeared.
+        }
+        catch (Exception ex)
+        {
+            _log.Error(
+                "windivert.stop.failed",
+                "Failed to stop the KROT-owned WinDivert kernel driver.",
+                ex);
+        }
+    }
+
+    private static string? NormalizeDriverPath(string? imagePath)
+    {
+        if (string.IsNullOrWhiteSpace(imagePath))
+        {
+            return null;
+        }
+
+        var value = Environment
+            .ExpandEnvironmentVariables(imagePath!.Trim().Trim('"'));
+        if (value.StartsWith(@"\??\", StringComparison.Ordinal))
+        {
+            value = value.Substring(4);
+        }
+
+        try
+        {
+            return Path.GetFullPath(value);
+        }
+        catch (Exception ex) when (
+            ex is ArgumentException
+            or NotSupportedException
+            or PathTooLongException)
+        {
+            return null;
         }
     }
 
@@ -470,6 +634,9 @@ public sealed class RealZapretProcessManager :
         public string DependencyDirectory { get; set; } = string.Empty;
 
         public string ExecutableSha256 { get; set; } = string.Empty;
+
+        public ISet<string> VerifiedFiles { get; set; } =
+            new HashSet<string>(StringComparer.OrdinalIgnoreCase);
     }
 
     private enum RuntimeKind

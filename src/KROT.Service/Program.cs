@@ -15,13 +15,14 @@ internal static class Program
 {
     private static void Main(string[] args)
     {
-        var useRealRuntime = Array.Exists(
+        var useFakeRuntime = Array.Exists(
             args,
-            x => string.Equals(x, "--real-runtime", StringComparison.OrdinalIgnoreCase));
+            x => string.Equals(x, "--fake-runtime", StringComparison.OrdinalIgnoreCase));
+        var useRealRuntime = !useFakeRuntime;
         var runtimeRoot = ReadOption(args, "--runtime-root")
             ?? System.IO.Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "runtime");
         var log = new RotatingFileLogService(
-            detailed: true,
+            detailed: false,
             directory: AppPaths.ServiceLogsDirectory);
         var processManager = useRealRuntime
             ? (KROT.Core.Contracts.IZapretProcessManager)new RealZapretProcessManager(runtimeRoot, log)
@@ -42,21 +43,37 @@ internal static class Program
             log,
             isFakeRuntime: !useRealRuntime);
 
-        if (Environment.UserInteractive)
+        try
         {
-            using var cancellation = new CancellationTokenSource();
-            Console.CancelKeyPress += (_, args) =>
+            if (Environment.UserInteractive)
             {
-                args.Cancel = true;
-                cancellation.Cancel();
-            };
+                using var cancellation = new CancellationTokenSource();
+                Console.CancelKeyPress += (_, args) =>
+                {
+                    args.Cancel = true;
+                    cancellation.Cancel();
+                };
 
-            var server = new NamedPipeCommandServer(engine, log);
-            server.RunAsync(cancellation.Token).GetAwaiter().GetResult();
-            return;
+                var server = new NamedPipeCommandServer(engine, log);
+                server.ShutdownRequested += (_, _) => cancellation.Cancel();
+                try
+                {
+                    server.RunAsync(cancellation.Token).GetAwaiter().GetResult();
+                }
+                finally
+                {
+                    engine.StopAsync(CancellationToken.None).GetAwaiter().GetResult();
+                }
+
+                return;
+            }
+
+            ServiceBase.Run(new KrotWindowsService(engine, log));
         }
-
-        ServiceBase.Run(new KrotWindowsService(engine, log));
+        finally
+        {
+            (processManager as IDisposable)?.Dispose();
+        }
     }
 
     private static string? ReadOption(string[] args, string name)

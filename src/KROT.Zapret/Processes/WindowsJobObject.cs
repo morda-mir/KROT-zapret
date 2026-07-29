@@ -62,7 +62,7 @@ internal sealed class WindowsJobObject : IDisposable
         {
             throw new Win32Exception(
                 Marshal.GetLastWin32Error(),
-                "Cannot assign winws2 to the KROT process job.");
+                "Cannot assign the KROT runtime process to its job.");
         }
     }
 

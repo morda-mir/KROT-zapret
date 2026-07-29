@@ -47,7 +47,10 @@ public partial class MainWindow
             ContextMenuStrip = contextMenu
         };
         _trayIcon.DoubleClick += (_, _) => RestoreFromTray();
+        _trayIcon.BalloonTipClicked += OnUpdateBalloonTipClicked;
         _viewModel.PropertyChanged += OnViewModelPropertyChanged;
+        _viewModel.RequestUpdateNotification += OnRequestUpdateNotification;
+        Loaded += OnLoaded;
         UpdateStatusIcons();
     }
 
@@ -64,7 +67,10 @@ public partial class MainWindow
         }
 
         _viewModel.RequestOpenLogs -= OnRequestOpenLogs;
+        _viewModel.RequestUpdateNotification -= OnRequestUpdateNotification;
         _viewModel.PropertyChanged -= OnViewModelPropertyChanged;
+        Loaded -= OnLoaded;
+        _trayIcon.BalloonTipClicked -= OnUpdateBalloonTipClicked;
         _trayIcon.Visible = false;
         _trayIcon.Dispose();
         _trayOffIcon.Dispose();
@@ -106,10 +112,30 @@ public partial class MainWindow
 
     private void OpenLogs_OnClick(object sender, RoutedEventArgs e) => _viewModel.OpenLogs();
 
+    private void OnLoaded(object sender, RoutedEventArgs e) =>
+        _viewModel.StartUpdateChecks();
+
     private void OnRequestOpenLogs(object? sender, EventArgs e)
     {
         var logWindow = new LogWindow(_viewModel.CurrentLanguage) { Owner = this };
         logWindow.ShowDialog();
+    }
+
+    private void OnRequestUpdateNotification(object? sender, EventArgs e)
+    {
+        _trayIcon.ShowBalloonTip(
+            10000,
+            _viewModel.UpdateNotificationTitle,
+            _viewModel.UpdateNotificationText,
+            Forms.ToolTipIcon.Info);
+    }
+
+    private void OnUpdateBalloonTipClicked(object? sender, EventArgs e)
+    {
+        if (_viewModel.OpenAvailableUpdateCommand.CanExecute(null))
+        {
+            _viewModel.OpenAvailableUpdateCommand.Execute(null);
+        }
     }
 
     private void RestoreFromTray()

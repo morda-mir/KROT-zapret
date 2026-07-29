@@ -9,7 +9,9 @@ public sealed class ServiceSnapshot
 
     public string MessageKey { get; set; } = "Status.Off";
 
-    public bool IsFakeRuntime { get; set; } = true;
+    public bool IsFakeRuntime { get; set; }
+
+    public bool ExternalTunnelDetected { get; set; }
 
     public List<ChannelSnapshot> Channels { get; set; } = new();
 }

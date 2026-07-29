@@ -12,6 +12,7 @@ namespace KROT.Infrastructure.Storage;
 
 public sealed class AtomicJsonSettingsStore : ISettingsStore
 {
+    private const long MaxSettingsBytes = 1024 * 1024;
     private readonly string _path;
     private readonly SemaphoreSlim _saveGate = new(1, 1);
     private readonly JsonSerializerSettings _serializerSettings = new()
@@ -41,19 +42,35 @@ public sealed class AtomicJsonSettingsStore : ISettingsStore
             return await NormalizeAndPersistAsync(loaded, cancellationToken)
                 .ConfigureAwait(false);
         }
-        catch (JsonException)
+        catch (Exception mainException)
+            when (mainException is JsonException or InvalidDataException)
         {
             var backup = _path + ".bak";
             if (!File.Exists(backup))
             {
-                return new KrotSettings();
+                var defaults = new KrotSettings();
+                await SaveAsync(defaults, cancellationToken).ConfigureAwait(false);
+                return defaults;
             }
 
-            var json = await ReadAllTextAsync(backup, cancellationToken).ConfigureAwait(false);
-            var loaded = JsonConvert.DeserializeObject<KrotSettings>(json, _serializerSettings)
-                ?? new KrotSettings();
-            return await NormalizeAndPersistAsync(loaded, cancellationToken)
-                .ConfigureAwait(false);
+            try
+            {
+                var json = await ReadAllTextAsync(backup, cancellationToken).ConfigureAwait(false);
+                var loaded = JsonConvert.DeserializeObject<KrotSettings>(
+                        json,
+                        _serializerSettings)
+                    ?? new KrotSettings();
+                var normalized = Normalize(loaded);
+                await SaveAsync(normalized, cancellationToken).ConfigureAwait(false);
+                return normalized;
+            }
+            catch (Exception backupException)
+                when (backupException is JsonException or InvalidDataException)
+            {
+                var defaults = new KrotSettings();
+                await SaveAsync(defaults, cancellationToken).ConfigureAwait(false);
+                return defaults;
+            }
         }
     }
 
@@ -104,6 +121,11 @@ public sealed class AtomicJsonSettingsStore : ISettingsStore
     private static async Task<string> ReadAllTextAsync(string path, CancellationToken cancellationToken)
     {
         using var stream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.Read, 4096, true);
+        if (stream.Length > MaxSettingsBytes)
+        {
+            throw new InvalidDataException("Settings file exceeds the safe size limit.");
+        }
+
         using var reader = new StreamReader(stream, Encoding.UTF8, true);
         var value = await reader.ReadToEndAsync().ConfigureAwait(false);
         cancellationToken.ThrowIfCancellationRequested();
@@ -113,7 +135,14 @@ public sealed class AtomicJsonSettingsStore : ISettingsStore
     private static KrotSettings Normalize(KrotSettings settings)
     {
         settings.SchemaVersion = KrotSettings.CurrentSchemaVersion;
-        settings.Services = settings.Services
+        settings.Language = string.Equals(
+            settings.Language,
+            "en",
+            StringComparison.OrdinalIgnoreCase)
+            ? "en"
+            : "ru";
+        settings.LastUpdateNotificationVersion ??= string.Empty;
+        settings.Services = (settings.Services ?? new())
             .Where(x => Enum.IsDefined(typeof(ServiceId), x.Id))
             .GroupBy(x => x.Id)
             .Select(x => x.First())
@@ -140,6 +169,10 @@ public sealed class AtomicJsonSettingsStore : ISettingsStore
     {
         var requiresRewrite =
             settings.SchemaVersion != KrotSettings.CurrentSchemaVersion
+            || !string.Equals(settings.Language, "ru", StringComparison.OrdinalIgnoreCase)
+               && !string.Equals(settings.Language, "en", StringComparison.OrdinalIgnoreCase)
+            || settings.LastUpdateNotificationVersion == null
+            || settings.Services == null
             || settings.Services.Count != Enum.GetValues(typeof(ServiceId)).Length
             || settings.Services.Any(item => !Enum.IsDefined(typeof(ServiceId), item.Id))
             || settings.Services.GroupBy(item => item.Id).Any(group => group.Count() > 1);

@@ -13,6 +13,125 @@
       "sourceUrl": "https://github.com/bol-van/zapret2/releases/download/v1.0.3/zapret2-v1.0.3.zip"
     },
     {
+      "runtimeId": "shared",
+      "relativePath": "zapret1-v72.13/fake/discord-ip-discovery-without-port.bin",
+      "version": "v72.13",
+      "sha256": "3f63c3a0cc63b90a6a8c50ffc61a32cc7d1f1b60457a96b90719256744df0e96",
+      "sourceUrl": "https://github.com/bol-van/zapret/releases/download/v72.13/zapret-v72.13.zip"
+    },
+    {
+      "runtimeId": "shared",
+      "relativePath": "zapret1-v72.13/fake/dtls_clienthello_w3_org.bin",
+      "version": "v72.13",
+      "sha256": "5bacd8cb6bd451f2374e55bc066b632e3c88fb852e3a44f19e6246c04d127be5",
+      "sourceUrl": "https://github.com/bol-van/zapret/releases/download/v72.13/zapret-v72.13.zip"
+    },
+    {
+      "runtimeId": "shared",
+      "relativePath": "zapret1-v72.13/fake/http_iana_org.bin",
+      "version": "v72.13",
+      "sha256": "3e4fb49b1323ddf2f8e691b1cbe804207b4e849711d76f79ebf2b54247a9285e",
+      "sourceUrl": "https://github.com/bol-van/zapret/releases/download/v72.13/zapret-v72.13.zip"
+    },
+    {
+      "runtimeId": "shared",
+      "relativePath": "zapret1-v72.13/fake/quic_initial_facebook_com.bin",
+      "version": "v72.13",
+      "sha256": "d6504305e15e6f63930d24ced9045001e345d3c1aeb56b1b4c329d51c7dea274",
+      "sourceUrl": "https://github.com/bol-van/zapret/releases/download/v72.13/zapret-v72.13.zip"
+    },
+    {
+      "runtimeId": "shared",
+      "relativePath": "zapret1-v72.13/fake/quic_initial_facebook_com_quiche.bin",
+      "version": "v72.13",
+      "sha256": "2c874e6b4adbfd9206c0b5a34a6a3e93af4c4f8552285408d61c56ed26c6f1f1",
+      "sourceUrl": "https://github.com/bol-van/zapret/releases/download/v72.13/zapret-v72.13.zip"
+    },
+    {
+      "runtimeId": "shared",
+      "relativePath": "zapret1-v72.13/fake/quic_initial_rr1---sn-xguxaxjvh-n8me_googlevideo_com_kyber_1.bin",
+      "version": "v72.13",
+      "sha256": "b8aaf20e3750f79a1f0b8cc15207e4a434c684ac72b6c1c12703bfd4a5728317",
+      "sourceUrl": "https://github.com/bol-van/zapret/releases/download/v72.13/zapret-v72.13.zip"
+    },
+    {
+      "runtimeId": "shared",
+      "relativePath": "zapret1-v72.13/fake/quic_initial_rr1---sn-xguxaxjvh-n8me_googlevideo_com_kyber_2.bin",
+      "version": "v72.13",
+      "sha256": "38c3a82140215151f7a34d14c01e494fea5242ac514c8b820648446ad33bb5b2",
+      "sourceUrl": "https://github.com/bol-van/zapret/releases/download/v72.13/zapret-v72.13.zip"
+    },
+    {
+      "runtimeId": "shared",
+      "relativePath": "zapret1-v72.13/fake/quic_initial_rutracker_org_kyber_1.bin",
+      "version": "v72.13",
+      "sha256": "e0ae5ed5e3018512c8ab8ba8d7097607a65f17fa258bbd0b50596abe85f71264",
+      "sourceUrl": "https://github.com/bol-van/zapret/releases/download/v72.13/zapret-v72.13.zip"
+    },
+    {
+      "runtimeId": "shared",
+      "relativePath": "zapret1-v72.13/fake/quic_initial_vk_com.bin",
+      "version": "v72.13",
+      "sha256": "f86d488593a65132c10e7e5b5e02f32ff8e0862988b30bebc6a671c5380f3976",
+      "sourceUrl": "https://github.com/bol-van/zapret/releases/download/v72.13/zapret-v72.13.zip"
+    },
+    {
+      "runtimeId": "shared",
+      "relativePath": "zapret1-v72.13/fake/quic_initial_www_google_com.bin",
+      "version": "v72.13",
+      "sha256": "f4589c57749f956bb30538197a521d7005f8b0a8723b4707e72405e51ddac50a",
+      "sourceUrl": "https://github.com/bol-van/zapret/releases/download/v72.13/zapret-v72.13.zip"
+    },
+    {
+      "runtimeId": "shared",
+      "relativePath": "zapret1-v72.13/fake/tls_clienthello_iana_org.bin",
+      "version": "v72.13",
+      "sha256": "9db8772636bb332f1970e8767bc7d628bfa640714bd0b7e699fbe92d559e666e",
+      "sourceUrl": "https://github.com/bol-van/zapret/releases/download/v72.13/zapret-v72.13.zip"
+    },
+    {
+      "runtimeId": "shared",
+      "relativePath": "zapret1-v72.13/fake/tls_clienthello_www_google_com.bin",
+      "version": "v72.13",
+      "sha256": "936c2bee4cfb80aa3c426b2dcbcc834b3fbcd1adb17172959dc569c73a14275c",
+      "sourceUrl": "https://github.com/bol-van/zapret/releases/download/v72.13/zapret-v72.13.zip"
+    },
+    {
+      "runtimeId": "shared",
+      "relativePath": "hostlists/discord.txt",
+      "version": "krot-1",
+      "sha256": "538e3525d84e2c70350062f081156658f01e631a24ea0ba33805face5d706c30",
+      "sourceUrl": "https://github.com/morda-mir/KROT-zapret"
+    },
+    {
+      "runtimeId": "shared",
+      "relativePath": "hostlists/youtube.txt",
+      "version": "krot-1",
+      "sha256": "bf1d3620ce5baa9ac8778ccf899deb0d6127ed57095ab349ebfc4cee41b4311c",
+      "sourceUrl": "https://github.com/morda-mir/KROT-zapret"
+    },
+    {
+      "runtimeId": "shared",
+      "relativePath": "filters/windivert_part.discord_media.txt",
+      "version": "krot-1",
+      "sha256": "c4576468e6fdfaf28efdbc537eb7e30ab32cf4ee66a96d5705c2b1410243c79b",
+      "sourceUrl": "https://github.com/morda-mir/KROT-zapret"
+    },
+    {
+      "runtimeId": "shared",
+      "relativePath": "filters/windivert_part.discord_media_in.txt",
+      "version": "krot-1",
+      "sha256": "014502628d4507cdc746b850211da87135f78b3444869fd9bab95a98e2745043",
+      "sourceUrl": "https://github.com/morda-mir/KROT-zapret"
+    },
+    {
+      "runtimeId": "shared",
+      "relativePath": "filters/windivert_part.stun.txt",
+      "version": "krot-1",
+      "sha256": "d30bd4897159bd7ec99de316fbc0543a2545f0e33a4cf3d5bb7395b6ac8f675e",
+      "sourceUrl": "https://github.com/morda-mir/KROT-zapret"
+    },
+    {
       "runtimeId": "zapret2-v1.0.3",
       "relativePath": "zapret2-v1.0.3/winws2.exe",
       "version": "v1.0.3",
@@ -58,7 +177,7 @@
       "runtimeId": "zapret2-v1.0.3",
       "relativePath": "zapret2-v1.0.3/lua/krot-auto.lua",
       "version": "krot-1",
-      "sha256": "6f8dc43eaf4721bf2be29c33fbd92c614e8bfae19f0ad4086b7fa3c04ff955e1",
+        "sha256": "f67264da704321fe61ed1df5a5525d840506c70e09a1c3d5eebe039b3f5021dc",
       "sourceUrl": "https://github.com/morda-mir/KROT-zapret"
     },
     {

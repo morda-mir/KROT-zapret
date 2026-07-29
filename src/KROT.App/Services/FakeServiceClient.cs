@@ -46,6 +46,20 @@ public sealed class FakeServiceClient : IServiceClient
         _options = null;
     }
 
+    public Task ShutdownAsync(CancellationToken cancellationToken) =>
+        StopAsync(cancellationToken);
+
+    public Task SetDetailedLogsAsync(bool enabled, CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        if (_options != null)
+        {
+            _options.DetailedLogs = enabled;
+        }
+
+        return Task.CompletedTask;
+    }
+
     private async Task SetStateAsync(AppState state, int delayMilliseconds, CancellationToken cancellationToken)
     {
         _stateMachine.TransitionTo(state);

@@ -79,14 +79,14 @@ public sealed class HttpPresetReachabilityProbe : IPresetReachabilityProbe
             timeout.Cancel();
             await Task.WhenAll(pending).ConfigureAwait(false);
             cancellationToken.ThrowIfCancellationRequested();
-            _log.Info(
+            _log.Detail(
                 "preset.probe",
                 $"{serviceId} reachable via {result.Host} (HTTP {result.StatusCode}).");
             return true;
         }
 
         cancellationToken.ThrowIfCancellationRequested();
-        _log.Info(
+        _log.Detail(
             "preset.probe",
             $"{serviceId} endpoints unavailable: "
             + string.Join(

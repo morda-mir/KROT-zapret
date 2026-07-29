@@ -26,6 +26,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "KROT.Zapret.Tests", "tests\
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "KROT.Diagnostics.Tests", "tests\KROT.Diagnostics.Tests\KROT.Diagnostics.Tests.csproj", "{A71B6C4E-ED9D-459A-8B56-1BB0CE526112}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "KROT.Service.Tests", "tests\KROT.Service.Tests\KROT.Service.Tests.csproj", "{A71B6C4E-ED9D-459A-8B56-1BB0CE526113}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|x64 = Debug|x64
@@ -80,6 +82,10 @@ Global
 		{A71B6C4E-ED9D-459A-8B56-1BB0CE526112}.Debug|x64.Build.0 = Debug|x64
 		{A71B6C4E-ED9D-459A-8B56-1BB0CE526112}.Release|x64.ActiveCfg = Release|x64
 		{A71B6C4E-ED9D-459A-8B56-1BB0CE526112}.Release|x64.Build.0 = Release|x64
+		{A71B6C4E-ED9D-459A-8B56-1BB0CE526113}.Debug|x64.ActiveCfg = Debug|x64
+		{A71B6C4E-ED9D-459A-8B56-1BB0CE526113}.Debug|x64.Build.0 = Debug|x64
+		{A71B6C4E-ED9D-459A-8B56-1BB0CE526113}.Release|x64.ActiveCfg = Release|x64
+		{A71B6C4E-ED9D-459A-8B56-1BB0CE526113}.Release|x64.Build.0 = Release|x64
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

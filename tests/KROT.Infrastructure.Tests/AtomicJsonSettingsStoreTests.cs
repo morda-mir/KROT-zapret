@@ -21,7 +21,13 @@ public sealed class AtomicJsonSettingsStoreTests : IDisposable
     {
         var path = Path.Combine(_directory, "settings.json");
         var store = new AtomicJsonSettingsStore(path);
-        var settings = new KrotSettings { Language = "en", DetailedLogs = true };
+        var settings = new KrotSettings
+        {
+            Language = "en",
+            DetailedLogs = true,
+            LastUpdateNotificationVersion = "1.1",
+            LastUpdateNotificationUtc = new DateTime(2026, 7, 29, 10, 0, 0, DateTimeKind.Utc)
+        };
 
         await store.SaveAsync(settings, CancellationToken.None);
         settings.Language = "ru";
@@ -30,6 +36,8 @@ public sealed class AtomicJsonSettingsStoreTests : IDisposable
 
         Assert.Equal("ru", loaded.Language);
         Assert.True(loaded.DetailedLogs);
+        Assert.Equal("1.1", loaded.LastUpdateNotificationVersion);
+        Assert.Equal(settings.LastUpdateNotificationUtc, loaded.LastUpdateNotificationUtc);
         Assert.True(File.Exists(path + ".bak"));
         Assert.False(File.Exists(path + ".tmp"));
     }
@@ -52,6 +60,51 @@ public sealed class AtomicJsonSettingsStoreTests : IDisposable
         Assert.DoesNotContain(loaded.Services, x => (int)x.Id == 2);
         Assert.DoesNotContain("\"Id\": 2", File.ReadAllText(path));
         Assert.DoesNotContain("\"Id\": 3", File.ReadAllText(path));
+    }
+
+    [Fact]
+    public async Task Load_NormalizesNullLanguageAndServices()
+    {
+        var path = Path.Combine(_directory, "settings.json");
+        Directory.CreateDirectory(_directory);
+        File.WriteAllText(path, "{\"Language\":null,\"Services\":null}");
+
+        var loaded = await new AtomicJsonSettingsStore(path)
+            .LoadAsync(CancellationToken.None);
+
+        Assert.Equal("ru", loaded.Language);
+        Assert.Equal(2, loaded.Services.Count);
+        Assert.All(loaded.Services, service => Assert.False(service.IsEnabled));
+    }
+
+    [Fact]
+    public async Task Load_ReturnsDefaultsWhenMainAndBackupAreInvalid()
+    {
+        var path = Path.Combine(_directory, "settings.json");
+        Directory.CreateDirectory(_directory);
+        File.WriteAllText(path, "{invalid");
+        File.WriteAllText(path + ".bak", "{also-invalid");
+
+        var loaded = await new AtomicJsonSettingsStore(path)
+            .LoadAsync(CancellationToken.None);
+
+        Assert.Equal("ru", loaded.Language);
+        Assert.Equal(2, loaded.Services.Count);
+        Assert.DoesNotContain("invalid", File.ReadAllText(path));
+    }
+
+    [Fact]
+    public async Task Load_ReplacesOversizedSettingsWithoutReadingThem()
+    {
+        var path = Path.Combine(_directory, "settings.json");
+        Directory.CreateDirectory(_directory);
+        File.WriteAllText(path, new string('x', (1024 * 1024) + 1));
+
+        var loaded = await new AtomicJsonSettingsStore(path)
+            .LoadAsync(CancellationToken.None);
+
+        Assert.Equal(KrotSettings.CurrentSchemaVersion, loaded.SchemaVersion);
+        Assert.InRange(new FileInfo(path).Length, 1, 1024 * 1024);
     }
 
     public void Dispose()

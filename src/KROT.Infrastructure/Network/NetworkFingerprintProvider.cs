@@ -32,6 +32,10 @@ public sealed class NetworkFingerprintProvider : INetworkFingerprintProvider
         {
             AdapterId = adapter.Id,
             ConnectionType = adapter.NetworkInterfaceType.ToString(),
+            Gateways = properties.GatewayAddresses
+                .Select(x => x.Address.ToString())
+                .OrderBy(x => x, StringComparer.Ordinal)
+                .ToArray(),
             DnsServers = properties.DnsAddresses.Select(x => x.ToString()).ToArray(),
             HasIpv4 = addresses.Any(x => x.AddressFamily == System.Net.Sockets.AddressFamily.InterNetwork),
             HasIpv6 = addresses.Any(x => x.AddressFamily == System.Net.Sockets.AddressFamily.InterNetworkV6)
@@ -47,4 +51,3 @@ public sealed class NetworkFingerprintProvider : INetworkFingerprintProvider
         return string.Concat(sha256.ComputeHash(bytes).Select(x => x.ToString("x2")));
     }
 }
-

@@ -7,8 +7,7 @@ public static class FieldTestCatalog
     public static IReadOnlyList<FieldTestEndpoint> Default { get; } = new[]
     {
         new FieldTestEndpoint("discord", "discord.com", "/api/v10/gateway"),
-        new FieldTestEndpoint("youtube", "www.youtube.com", "/generate_204"),
-        new FieldTestEndpoint("ai-services", "chatgpt.com", "/")
+        new FieldTestEndpoint("youtube", "www.youtube.com", "/generate_204")
     };
 }
 

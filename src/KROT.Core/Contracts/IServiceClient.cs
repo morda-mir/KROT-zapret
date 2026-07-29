@@ -14,4 +14,8 @@ public interface IServiceClient
     Task StartAsync(KrotStartOptions options, CancellationToken cancellationToken);
 
     Task StopAsync(CancellationToken cancellationToken);
+
+    Task SetDetailedLogsAsync(bool enabled, CancellationToken cancellationToken);
+
+    Task ShutdownAsync(CancellationToken cancellationToken);
 }
