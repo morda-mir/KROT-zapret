@@ -1,7 +1,6 @@
 {
   "schemaVersion": 1,
   "activeZapret2": "zapret2-v1.0.3",
-  "previousZapret2": "zapret2-v1.0.2",
   "legacyZapret1": "zapret1-v72.13",
   "fakeRuntimeOnly": false,
   "files": [
@@ -179,27 +178,6 @@
       "version": "krot-1",
         "sha256": "f67264da704321fe61ed1df5a5525d840506c70e09a1c3d5eebe039b3f5021dc",
       "sourceUrl": "https://github.com/morda-mir/KROT-zapret"
-    },
-    {
-      "runtimeId": "zapret2-v1.0.2",
-      "relativePath": "zapret2-v1.0.2/winws2.exe",
-      "version": "v1.0.2",
-      "sha256": "2bd9661d857794db6591510a92607da1d74e6da018887f19e832df68a9679275",
-      "sourceUrl": "https://github.com/bol-van/zapret2/releases/download/v1.0.2/zapret2-v1.0.2.zip"
-    },
-    {
-      "runtimeId": "zapret2-v1.0.2",
-      "relativePath": "zapret2-v1.0.2/WinDivert.dll",
-      "version": "v1.0.2",
-      "sha256": "06c3f201b815a5798816e8c15b925b28f3c38e5aba31efedec10af9e598ce723",
-      "sourceUrl": "https://github.com/bol-van/zapret2/releases/download/v1.0.2/zapret2-v1.0.2.zip"
-    },
-    {
-      "runtimeId": "zapret2-v1.0.2",
-      "relativePath": "zapret2-v1.0.2/WinDivert64.sys",
-      "version": "v1.0.2",
-      "sha256": "8da085332782708d8767bcace5327a6ec7283c17cfb85e40b03cd2323a90ddc2",
-      "sourceUrl": "https://github.com/bol-van/zapret2/releases/download/v1.0.2/zapret2-v1.0.2.zip"
     },
     {
       "runtimeId": "zapret1-v72.13",

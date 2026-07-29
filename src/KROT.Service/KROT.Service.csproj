@@ -17,7 +17,11 @@
   </ItemGroup>
   <ItemGroup>
     <Content Include="..\..\third_party\zapret\**\*.*"
+             Exclude="..\..\third_party\zapret\zapret2-v1.0.2\**\*.*"
              Link="runtime\%(RecursiveDir)%(Filename)%(Extension)"
              CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
+  <Target Name="RemoveUnusedZapret2Runtime" AfterTargets="Build">
+    <RemoveDir Directories="$(TargetDir)runtime\zapret2-v1.0.2" />
+  </Target>
 </Project>

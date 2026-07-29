@@ -8,8 +8,6 @@ public sealed class RuntimeManifest
 
     public string ActiveZapret2 { get; set; } = string.Empty;
 
-    public string PreviousZapret2 { get; set; } = string.Empty;
-
     public string LegacyZapret1 { get; set; } = string.Empty;
 
     public List<RuntimeFileEntry> Files { get; set; } = new();
@@ -27,4 +25,3 @@ public sealed class RuntimeFileEntry
 
     public string SourceUrl { get; set; } = string.Empty;
 }
-

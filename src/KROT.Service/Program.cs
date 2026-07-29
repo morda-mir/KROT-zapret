@@ -13,8 +13,23 @@ namespace KROT.Service;
 
 internal static class Program
 {
-    private static void Main(string[] args)
+    private static int Main(string[] args)
     {
+        if (HasOption(args, "--install-service"))
+        {
+            return ServiceRegistration.Run(ServiceRegistrationAction.Install);
+        }
+
+        if (HasOption(args, "--uninstall-service"))
+        {
+            return ServiceRegistration.Run(ServiceRegistrationAction.Uninstall);
+        }
+
+        if (HasOption(args, "--stop-service"))
+        {
+            return ServiceRegistration.Run(ServiceRegistrationAction.Stop);
+        }
+
         var useFakeRuntime = Array.Exists(
             args,
             x => string.Equals(x, "--fake-runtime", StringComparison.OrdinalIgnoreCase));
@@ -65,10 +80,11 @@ internal static class Program
                     engine.StopAsync(CancellationToken.None).GetAwaiter().GetResult();
                 }
 
-                return;
+                return 0;
             }
 
             ServiceBase.Run(new KrotWindowsService(engine, log));
+            return 0;
         }
         finally
         {
@@ -88,4 +104,9 @@ internal static class Program
 
         return null;
     }
+
+    private static bool HasOption(string[] args, string name) =>
+        Array.Exists(
+            args,
+            x => string.Equals(x, name, StringComparison.OrdinalIgnoreCase));
 }

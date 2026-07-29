@@ -29,13 +29,13 @@ PrivilegesRequired=admin
 OutputDir={#MyOutputDir}
 OutputBaseFilename=KROT-Setup-{#MyAppVersion}-x64
 SetupIconFile=..\assets\tray\krot-tray-off.ico
-Compression=lzma2
-SolidCompression=yes
+Compression=zip
+SolidCompression=no
 WizardStyle=modern
 UninstallDisplayName={#MyAppName}
 UninstallDisplayIcon={app}\KROT.exe
 AppMutex=Local\KROT-zapret-GUI-v1
-CloseApplications=yes
+CloseApplications=no
 RestartApplications=no
 SetupLogging=yes
 
@@ -50,8 +50,10 @@ Source: "..\src\KROT.App\bin\x64\Release\net48\*"; DestDir: "{app}"; Excludes: "
 Source: "..\src\KROT.Service\bin\x64\Release\net48\*"; DestDir: "{app}\service"; Excludes: "*.pdb,*.xml"; Flags: ignoreversion recursesubdirs createallsubdirs
 Source: "..\third_party\licenses\*"; DestDir: "{app}\licenses"; Flags: ignoreversion recursesubdirs createallsubdirs
 Source: "..\THIRD_PARTY_NOTICES.txt"; DestDir: "{app}"; Flags: ignoreversion
-Source: "install-service.ps1"; DestDir: "{app}\tools"; Flags: ignoreversion
-Source: "uninstall-service.ps1"; DestDir: "{app}\tools"; Flags: ignoreversion
+
+[InstallDelete]
+Type: filesandordirs; Name: "{app}\tools"
+Type: filesandordirs; Name: "{app}\service\runtime\zapret2-v1.0.2"
 
 [Icons]
 Name: "{group}\KROT zapret"; Filename: "{app}\{#MyAppExeName}"; WorkingDir: "{app}"
@@ -62,7 +64,7 @@ Name: "{autodesktop}\KROT zapret"; Filename: "{app}\{#MyAppExeName}"; WorkingDir
 Filename: "{app}\{#MyAppExeName}"; Description: "Запустить KROT zapret"; Flags: nowait postinstall skipifsilent runasoriginaluser
 
 [UninstallRun]
-Filename: "{sys}\WindowsPowerShell\v1.0\powershell.exe"; Parameters: "-NoProfile -NonInteractive -ExecutionPolicy Bypass -File ""{app}\tools\uninstall-service.ps1"""; Flags: runhidden waituntilterminated; RunOnceId: "RemoveKrotService"
+Filename: "{app}\service\KROT.Service.exe"; Parameters: "--uninstall-service"; Flags: runhidden waituntilterminated; RunOnceId: "RemoveKrotService"
 
 [Code]
 const
@@ -103,53 +105,31 @@ end;
 
 function PrepareToInstall(var NeedsRestart: Boolean): String;
 var
-  PowerShellPath: String;
-  Parameters: String;
+  ServiceControlPath: String;
   ResultCode: Integer;
 begin
   Result := '';
-  PowerShellPath := ExpandConstant('{sys}\WindowsPowerShell\v1.0\powershell.exe');
-  Parameters :=
-    '-NoProfile -NonInteractive -ExecutionPolicy Bypass -Command "' +
-    '$ErrorActionPreference = ''Stop''; ' +
-    '$service = Get-Service -Name ''KROTZapret'' -ErrorAction SilentlyContinue; ' +
-    'if ($null -ne $service -and $service.Status -ne ''Stopped'') { ' +
-    'Stop-Service -Name ''KROTZapret'' -Force; ' +
-    '$service.WaitForStatus([ServiceProcess.ServiceControllerStatus]::Stopped, ' +
-    '[TimeSpan]::FromSeconds(15)) }"';
-
-  if not Exec(
-      PowerShellPath,
-      Parameters,
+  ServiceControlPath := ExpandConstant('{sys}\net.exe');
+  if Exec(
+      ServiceControlPath,
+      'stop KROTZapret /y',
       '',
       SW_HIDE,
       ewWaitUntilTerminated,
       ResultCode) then
-  begin
-    Result := 'Не удалось подготовить службу KROT к установке.';
-    exit;
-  end;
-
-  if ResultCode <> 0 then
-    Result := 'Не удалось остановить службу KROT перед установкой.';
+    Log('KROT service stop command completed with code ' + IntToStr(ResultCode) + '.');
 end;
 
 procedure InstallKrotService();
 var
-  PowerShellPath: String;
-  Parameters: String;
+  ServiceExecutable: String;
   ResultCode: Integer;
 begin
-  PowerShellPath := ExpandConstant('{sys}\WindowsPowerShell\v1.0\powershell.exe');
-  Parameters :=
-    '-NoProfile -NonInteractive -ExecutionPolicy Bypass -File ' +
-    AddQuotes(ExpandConstant('{app}\tools\install-service.ps1')) +
-    ' -ServiceDirectory ' +
-    AddQuotes(ExpandConstant('{app}\service'));
+  ServiceExecutable := ExpandConstant('{app}\service\KROT.Service.exe');
 
   if not Exec(
-      PowerShellPath,
-      Parameters,
+      ServiceExecutable,
+      '--install-service',
       '',
       SW_HIDE,
       ewWaitUntilTerminated,

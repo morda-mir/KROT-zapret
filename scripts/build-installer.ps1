@@ -52,6 +52,12 @@ if (-not $issVersionMatch.Success -or $issVersionMatch.Groups['version'].Value -
 }
 
 if (-not $SkipBuild) {
+    Invoke-CheckedCommand dotnet @(
+        'clean',
+        $solutionPath,
+        '--configuration', 'Release',
+        '--property:Platform=x64'
+    )
     Invoke-CheckedCommand dotnet @('restore', $solutionPath)
     Invoke-CheckedCommand dotnet @(
         'build',
