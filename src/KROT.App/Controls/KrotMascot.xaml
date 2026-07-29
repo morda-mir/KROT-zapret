@@ -14,6 +14,80 @@
                   Fill="#050505"
                   Data="M 0 194 L 0 208 L 2 209 L 11 209 L 12 210 L 20 210 L 21 211 L 33 211 L 34 212 L 48 212 L 49 213 L 70 213 L 71 214 L 96 214 L 97 215 L 134 215 L 135 216 L 192 216 L 193 215 L 232 215 L 233 214 L 259 214 L 260 213 L 276 213 L 277 212 L 290 212 L 291 211 L 303 211 L 304 210 L 314 210 L 315 209 L 326 209 L 327 208 L 329 208 L 329 194 L 326 194 L 325 193 L 323 193 L 322 192 L 320 192 L 319 191 L 317 191 L 316 190 L 311 189 L 308 187 L 308 185 L 311 179 L 310 177 L 310 174 L 308 170 L 306 168 L 306 167 L 301 162 L 300 160 L 299 160 L 291 153 L 288 152 L 281 147 L 279 147 L 274 144 L 272 144 L 271 143 L 269 143 L 265 141 L 262 141 L 261 140 L 259 140 L 258 139 L 254 139 L 253 138 L 253 135 L 252 134 L 252 124 L 251 123 L 250 112 L 249 111 L 249 108 L 247 104 L 247 101 L 246 100 L 245 95 L 242 90 L 242 88 L 238 80 L 236 78 L 234 73 L 229 67 L 229 66 L 215 52 L 214 52 L 208 47 L 198 42 L 196 42 L 195 41 L 193 41 L 192 40 L 190 40 L 186 38 L 183 38 L 182 37 L 176 37 L 175 36 L 152 36 L 151 37 L 147 37 L 146 38 L 139 39 L 138 40 L 136 40 L 135 41 L 130 42 L 122 46 L 120 48 L 116 50 L 113 53 L 112 53 L 100 65 L 100 66 L 97 69 L 97 70 L 93 75 L 86 89 L 86 91 L 84 94 L 84 96 L 82 100 L 82 103 L 81 104 L 80 111 L 79 112 L 79 117 L 78 118 L 78 124 L 77 125 L 77 135 L 76 136 L 76 138 L 75 139 L 70 139 L 69 140 L 66 140 L 62 142 L 59 142 L 54 145 L 52 145 L 44 149 L 42 151 L 41 151 L 39 153 L 35 155 L 25 164 L 25 165 L 22 168 L 19 174 L 19 176 L 18 177 L 18 182 L 20 185 L 20 187 L 18 189 L 16 189 L 12 191 L 9 191 L 8 192 L 6 192 L 5 193 Z" />
 
+            <Canvas x:Name="SearchlightBeamGroup"
+                    Width="330"
+                    Height="225"
+                    Opacity="0">
+                <Canvas.RenderTransform>
+                    <RotateTransform x:Name="SearchlightBeamRotate"
+                                     CenterX="165"
+                                     CenterY="49" />
+                </Canvas.RenderTransform>
+
+                <Path Data="M 165 49 L 330 18 L 330 112 Z">
+                    <Path.Fill>
+                        <LinearGradientBrush StartPoint="0,0.5"
+                                             EndPoint="1,0.5">
+                            <GradientStop Offset="0"
+                                          Color="#FFFFE477" />
+                            <GradientStop Offset="0.5"
+                                          Color="#B8FFD34E" />
+                            <GradientStop Offset="1"
+                                          Color="#18FFD34E" />
+                        </LinearGradientBrush>
+                    </Path.Fill>
+                </Path>
+            </Canvas>
+
+            <Canvas x:Name="MiningHelmet"
+                    Width="330"
+                    Height="225">
+                <Path Fill="#F4B72C"
+                      Stroke="#C98612"
+                      StrokeThickness="2"
+                      Data="M 111 65 C 115 34 137 17 165 17 C 193 17 215 34 219 65 Z" />
+
+                <Path Fill="#FFD85A"
+                      Data="M 156 19 C 162 16 168 16 174 19 L 176 61 L 154 61 Z"
+                      Opacity="0.72" />
+
+                <Rectangle Canvas.Left="104"
+                           Canvas.Top="59"
+                           Width="122"
+                           Height="15"
+                           RadiusX="7.5"
+                           RadiusY="7.5"
+                           Fill="#E7A21B"
+                           Stroke="#B9730D"
+                           StrokeThickness="2" />
+
+                <Ellipse Canvas.Left="145"
+                         Canvas.Top="39"
+                         Width="40"
+                         Height="31"
+                         Fill="#8A5A18"
+                         Stroke="#4B320F"
+                         StrokeThickness="2" />
+
+                <Ellipse x:Name="LampGlow"
+                         Canvas.Left="149"
+                         Canvas.Top="43"
+                         Width="32"
+                         Height="23"
+                         Fill="#FFFF8A"
+                         Opacity="0.32" />
+
+                <Ellipse x:Name="LampLens"
+                         Canvas.Left="154"
+                         Canvas.Top="47"
+                         Width="22"
+                         Height="15"
+                         Fill="#FFF4A3"
+                         Stroke="#FFFBD4"
+                         StrokeThickness="1.5"
+                         Opacity="0.82" />
+            </Canvas>
+
             <Canvas x:Name="EyesGroup">
                 <Path x:Name="LeftEye"
                       Fill="White"
@@ -113,104 +187,6 @@
                     <RotateTransform x:Name="RightPawRotate" />
                 </Path.RenderTransform>
             </Path>
-
-            <Canvas x:Name="DiggingMound"
-                    Opacity="0">
-                <Canvas.RenderTransform>
-                    <TranslateTransform x:Name="DiggingMoundTranslate" />
-                </Canvas.RenderTransform>
-                <Path Fill="#70472B"
-                      Stroke="#A36B3E"
-                      StrokeThickness="2"
-                      Data="M 8 216 C 18 191 43 180 73 181 C 88 163 111 157 135 166 C 151 153 174 153 193 166 C 215 156 241 164 255 181 C 285 178 311 191 322 216 L 322 225 L 8 225 Z" />
-                <Path Fill="#8C5B36"
-                      Data="M 46 202 C 62 188 82 186 99 194 C 113 180 134 178 150 188 C 169 176 194 179 208 191 C 227 182 250 187 268 202 C 222 196 103 198 46 202 Z"
-                      Opacity="0.82" />
-                <Ellipse Canvas.Left="55"
-                         Canvas.Top="184"
-                         Width="25"
-                         Height="12"
-                         Fill="#A56C3E"
-                         Opacity="0.9" />
-                <Ellipse Canvas.Left="232"
-                         Canvas.Top="183"
-                         Width="29"
-                         Height="13"
-                         Fill="#986038"
-                         Opacity="0.9" />
-                <Ellipse Canvas.Left="146"
-                         Canvas.Top="171"
-                         Width="34"
-                         Height="15"
-                         Fill="#815032"
-                         Opacity="0.88" />
-            </Canvas>
-
-            <Canvas x:Name="LeftDirtBurst"
-                    Opacity="0">
-                <Canvas.RenderTransform>
-                    <TranslateTransform x:Name="LeftDirtTranslate" />
-                </Canvas.RenderTransform>
-                <Ellipse Canvas.Left="70"
-                         Canvas.Top="174"
-                         Width="15"
-                         Height="10"
-                         Fill="#B97842" />
-                <Ellipse Canvas.Left="88"
-                         Canvas.Top="181"
-                         Width="10"
-                         Height="8"
-                         Fill="#D29A59" />
-                <Ellipse Canvas.Left="58"
-                         Canvas.Top="187"
-                         Width="8"
-                         Height="7"
-                         Fill="#8C5B36" />
-            </Canvas>
-
-            <Canvas x:Name="RightDirtBurst"
-                    Opacity="0">
-                <Canvas.RenderTransform>
-                    <TranslateTransform x:Name="RightDirtTranslate" />
-                </Canvas.RenderTransform>
-                <Ellipse Canvas.Left="245"
-                         Canvas.Top="174"
-                         Width="15"
-                         Height="10"
-                         Fill="#B97842" />
-                <Ellipse Canvas.Left="229"
-                         Canvas.Top="181"
-                         Width="10"
-                         Height="8"
-                         Fill="#D29A59" />
-                <Ellipse Canvas.Left="265"
-                         Canvas.Top="187"
-                         Width="8"
-                         Height="7"
-                         Fill="#8C5B36" />
-            </Canvas>
-
-            <Canvas x:Name="CenterDirtBurst"
-                    Opacity="0">
-                <Canvas.RenderTransform>
-                    <TranslateTransform x:Name="CenterDirtTranslate" />
-                </Canvas.RenderTransform>
-                <Ellipse Canvas.Left="153"
-                         Canvas.Top="170"
-                         Width="12"
-                         Height="9"
-                         Fill="#D29A59" />
-                <Ellipse Canvas.Left="170"
-                         Canvas.Top="176"
-                         Width="9"
-                         Height="7"
-                         Fill="#A86B3C" />
-                <Ellipse Canvas.Left="141"
-                         Canvas.Top="181"
-                         Width="7"
-                         Height="6"
-                         Fill="#8C5B36" />
-            </Canvas>
 
         </Canvas>
     </Viewbox>

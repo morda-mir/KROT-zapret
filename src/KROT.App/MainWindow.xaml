@@ -62,7 +62,7 @@
           </Grid.ColumnDefinitions>
           <controls:KrotMascot Width="104"
                                Height="68"
-                               IsDigging="{Binding HasBusyChannels}"
+                               IsSearching="{Binding HasBusyChannels}"
                                HorizontalAlignment="Left"
                                VerticalAlignment="Center" />
 

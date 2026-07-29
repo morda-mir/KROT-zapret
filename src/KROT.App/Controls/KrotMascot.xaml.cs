@@ -8,17 +8,17 @@ namespace KROT.App.Controls
 {
     public partial class KrotMascot : UserControl
     {
-        public static readonly DependencyProperty IsDiggingProperty =
+        public static readonly DependencyProperty IsSearchingProperty =
             DependencyProperty.Register(
-                nameof(IsDigging),
+                nameof(IsSearching),
                 typeof(bool),
                 typeof(KrotMascot),
-                new PropertyMetadata(false, OnIsDiggingChanged));
+                new PropertyMetadata(false, OnIsSearchingChanged));
 
         private readonly Random _random = new Random();
         private readonly DispatcherTimer _animationTimer;
         private bool _animationRunning;
-        private bool _diggingRunning;
+        private bool _searchlightRunning;
         private bool _introPlayed;
 
         public KrotMascot()
@@ -35,33 +35,33 @@ namespace KROT.App.Controls
             Loaded += async (_, __) =>
             {
                 StartIdleAnimations();
-                UpdateDiggingAnimation();
+                UpdateSearchlightAnimation();
                 await PlayIntroAsync();
             };
             Unloaded += (_, __) =>
             {
                 StopIdleAnimations();
-                StopDiggingAnimation();
+                StopSearchlightAnimation();
             };
             IsVisibleChanged += (_, __) =>
             {
                 if (IsVisible)
                 {
                     StartIdleAnimations();
-                    UpdateDiggingAnimation();
+                    UpdateSearchlightAnimation();
                 }
                 else
                 {
                     StopIdleAnimations();
-                    StopDiggingAnimation();
+                    StopSearchlightAnimation();
                 }
             };
         }
 
-        public bool IsDigging
+        public bool IsSearching
         {
-            get => (bool)GetValue(IsDiggingProperty);
-            set => SetValue(IsDiggingProperty, value);
+            get => (bool)GetValue(IsSearchingProperty);
+            set => SetValue(IsSearchingProperty, value);
         }
 
         public void StartIdleAnimations()
@@ -253,7 +253,7 @@ namespace KROT.App.Controls
 
         private void PawTwitch()
         {
-            if (IsDigging)
+            if (IsSearching)
             {
                 return;
             }
@@ -292,168 +292,110 @@ namespace KROT.App.Controls
             return System.Threading.Tasks.Task.Delay(milliseconds);
         }
 
-        private static void OnIsDiggingChanged(
+        private static void OnIsSearchingChanged(
             DependencyObject dependencyObject,
             DependencyPropertyChangedEventArgs eventArgs)
         {
-            ((KrotMascot)dependencyObject).UpdateDiggingAnimation();
+            ((KrotMascot)dependencyObject).UpdateSearchlightAnimation();
         }
 
-        private void UpdateDiggingAnimation()
+        private void UpdateSearchlightAnimation()
         {
-            if (IsLoaded && IsVisible && IsDigging)
+            if (IsLoaded && IsVisible && IsSearching)
             {
-                StartDiggingAnimation();
+                StartSearchlightAnimation();
             }
             else
             {
-                StopDiggingAnimation();
+                StopSearchlightAnimation();
             }
         }
 
-        private void StartDiggingAnimation()
+        private void StartSearchlightAnimation()
         {
-            if (_diggingRunning)
+            if (_searchlightRunning)
             {
                 return;
             }
 
-            _diggingRunning = true;
-            DiggingMound.Opacity = 1;
+            _searchlightRunning = true;
 
-            var moundMovement = new DoubleAnimation
+            var beamSweep = new DoubleAnimation
             {
-                From = 1,
-                To = -3,
-                Duration = TimeSpan.FromMilliseconds(190),
+                From = -20,
+                To = 20,
+                Duration = TimeSpan.FromMilliseconds(1100),
                 AutoReverse = true,
                 RepeatBehavior = RepeatBehavior.Forever,
-                EasingFunction = new QuadraticEase
+                EasingFunction = new SineEase
                 {
                     EasingMode = EasingMode.EaseInOut
                 }
             };
-            DiggingMoundTranslate.BeginAnimation(
-                System.Windows.Media.TranslateTransform.YProperty,
-                moundMovement);
-
-            StartDirtBurst(
-                LeftDirtBurst,
-                LeftDirtTranslate,
-                horizontalOffset: -66,
-                verticalOffset: -102,
-                beginDelayMilliseconds: 0);
-            StartDirtBurst(
-                RightDirtBurst,
-                RightDirtTranslate,
-                horizontalOffset: 66,
-                verticalOffset: -102,
-                beginDelayMilliseconds: 280);
-            StartDirtBurst(
-                CenterDirtBurst,
-                CenterDirtTranslate,
-                horizontalOffset: 5,
-                verticalOffset: -118,
-                beginDelayMilliseconds: 140);
-        }
-
-        private static void StartDirtBurst(
-            UIElement burst,
-            System.Windows.Media.TranslateTransform translate,
-            double horizontalOffset,
-            double verticalOffset,
-            int beginDelayMilliseconds)
-        {
-            var beginTime = TimeSpan.FromMilliseconds(beginDelayMilliseconds);
-            var duration = TimeSpan.FromMilliseconds(820);
-            var horizontal = new DoubleAnimation
+            var beamPulse = new DoubleAnimation
             {
-                From = 0,
-                To = horizontalOffset,
-                BeginTime = beginTime,
-                Duration = duration,
+                From = 0.42,
+                To = 0.68,
+                Duration = TimeSpan.FromMilliseconds(720),
+                AutoReverse = true,
                 RepeatBehavior = RepeatBehavior.Forever,
-                FillBehavior = FillBehavior.Stop
-            };
-            var vertical = new DoubleAnimation
-            {
-                From = 0,
-                To = verticalOffset,
-                BeginTime = beginTime,
-                Duration = duration,
-                RepeatBehavior = RepeatBehavior.Forever,
-                EasingFunction = new QuadraticEase
+                EasingFunction = new SineEase
                 {
-                    EasingMode = EasingMode.EaseOut
-                },
-                FillBehavior = FillBehavior.Stop
+                    EasingMode = EasingMode.EaseInOut
+                }
             };
-            var opacity = new DoubleAnimationUsingKeyFrames
-            {
-                BeginTime = beginTime,
-                Duration = duration,
-                RepeatBehavior = RepeatBehavior.Forever,
-                FillBehavior = FillBehavior.Stop
-            };
-            opacity.KeyFrames.Add(
-                new DiscreteDoubleKeyFrame(
-                    0,
-                    KeyTime.FromTimeSpan(TimeSpan.Zero)));
-            opacity.KeyFrames.Add(
-                new EasingDoubleKeyFrame(
-                    1,
-                    KeyTime.FromTimeSpan(TimeSpan.FromMilliseconds(120))));
-            opacity.KeyFrames.Add(
-                new EasingDoubleKeyFrame(
-                    0,
-                    KeyTime.FromTimeSpan(TimeSpan.FromMilliseconds(790))));
 
-            translate.BeginAnimation(
-                System.Windows.Media.TranslateTransform.XProperty,
-                horizontal);
-            translate.BeginAnimation(
-                System.Windows.Media.TranslateTransform.YProperty,
-                vertical);
-            burst.BeginAnimation(OpacityProperty, opacity);
+            var lampPulse = new DoubleAnimation
+            {
+                From = 0.38,
+                To = 0.95,
+                Duration = TimeSpan.FromMilliseconds(620),
+                AutoReverse = true,
+                RepeatBehavior = RepeatBehavior.Forever,
+                EasingFunction = new SineEase
+                {
+                    EasingMode = EasingMode.EaseInOut
+                }
+            };
+            var lensPulse = new DoubleAnimation
+            {
+                From = 0.82,
+                To = 1,
+                Duration = TimeSpan.FromMilliseconds(620),
+                AutoReverse = true,
+                RepeatBehavior = RepeatBehavior.Forever,
+                EasingFunction = new SineEase
+                {
+                    EasingMode = EasingMode.EaseInOut
+                }
+            };
+
+            SearchlightBeamRotate.BeginAnimation(
+                System.Windows.Media.RotateTransform.AngleProperty,
+                beamSweep);
+            SearchlightBeamGroup.BeginAnimation(OpacityProperty, beamPulse);
+            LampGlow.BeginAnimation(OpacityProperty, lampPulse);
+            LampLens.BeginAnimation(OpacityProperty, lensPulse);
         }
 
-        private void StopDiggingAnimation()
+        private void StopSearchlightAnimation()
         {
-            if (!_diggingRunning)
+            if (!_searchlightRunning)
             {
                 return;
             }
 
-            _diggingRunning = false;
-            DiggingMoundTranslate.BeginAnimation(
-                System.Windows.Media.TranslateTransform.YProperty,
+            _searchlightRunning = false;
+            SearchlightBeamRotate.BeginAnimation(
+                System.Windows.Media.RotateTransform.AngleProperty,
                 null);
-            LeftDirtTranslate.BeginAnimation(
-                System.Windows.Media.TranslateTransform.XProperty,
-                null);
-            LeftDirtTranslate.BeginAnimation(
-                System.Windows.Media.TranslateTransform.YProperty,
-                null);
-            RightDirtTranslate.BeginAnimation(
-                System.Windows.Media.TranslateTransform.XProperty,
-                null);
-            RightDirtTranslate.BeginAnimation(
-                System.Windows.Media.TranslateTransform.YProperty,
-                null);
-            CenterDirtTranslate.BeginAnimation(
-                System.Windows.Media.TranslateTransform.XProperty,
-                null);
-            CenterDirtTranslate.BeginAnimation(
-                System.Windows.Media.TranslateTransform.YProperty,
-                null);
-            LeftDirtBurst.BeginAnimation(OpacityProperty, null);
-            RightDirtBurst.BeginAnimation(OpacityProperty, null);
-            CenterDirtBurst.BeginAnimation(OpacityProperty, null);
-            LeftDirtBurst.Opacity = 0;
-            RightDirtBurst.Opacity = 0;
-            CenterDirtBurst.Opacity = 0;
-            DiggingMound.Opacity = 0;
-            DiggingMoundTranslate.Y = 0;
+            SearchlightBeamGroup.BeginAnimation(OpacityProperty, null);
+            LampGlow.BeginAnimation(OpacityProperty, null);
+            LampLens.BeginAnimation(OpacityProperty, null);
+            SearchlightBeamRotate.Angle = 0;
+            SearchlightBeamGroup.Opacity = 0;
+            LampGlow.Opacity = 0.32;
+            LampLens.Opacity = 0.82;
         }
     }
 }
