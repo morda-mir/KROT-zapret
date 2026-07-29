@@ -16,10 +16,10 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
 
       - name: Setup .NET
-        uses: actions/setup-dotnet@v4
+        uses: actions/setup-dotnet@67a3573c9a986a3f9c594539f4ab511d57bb3ce9 # v4
         with:
           dotnet-version: 8.0.x
 
@@ -33,4 +33,13 @@ jobs:
         run: dotnet test KROT.sln -c Release -p:Platform=x64 --no-build --logger "trx;LogFileName=tests.trx"
 
       - name: Check vulnerable dependencies
-        run: dotnet list KROT.sln package --vulnerable --include-transitive
+        shell: pwsh
+        run: |
+          $report = & dotnet list KROT.sln package --vulnerable --include-transitive --format json
+          if ($LASTEXITCODE -ne 0) {
+            throw "NuGet vulnerability audit exited with code $LASTEXITCODE."
+          }
+          $report | Write-Host
+          if (($report -join [Environment]::NewLine) -match '"vulnerabilities"\s*:') {
+            throw 'NuGet vulnerability audit found one or more vulnerable packages.'
+          }

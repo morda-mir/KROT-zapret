@@ -26,9 +26,18 @@ $serviceAclResult = & $icacls $serviceDirectoryPath `
     '*S-1-5-18:(OI)(CI)F' `
     '*S-1-5-32-544:(OI)(CI)F' `
     '*S-1-5-32-545:(OI)(CI)RX' `
-    /T /C /Q
+    /Q
 if ($LASTEXITCODE -ne 0) {
     throw "Failed to secure KROT service files: $serviceAclResult"
+}
+
+$serviceDirectoryChildren = Get-ChildItem -LiteralPath $serviceDirectoryPath -Force
+if ($serviceDirectoryChildren) {
+    $serviceChildAclResult = & $icacls (Join-Path $serviceDirectoryPath '*') `
+        /reset /T /C /Q
+    if ($LASTEXITCODE -ne 0) {
+        throw "Failed to repair KROT service child permissions: $serviceChildAclResult"
+    }
 }
 
 $null = New-Item -ItemType Directory -Path $serviceStateDirectory -Force
@@ -82,6 +91,11 @@ else {
         -DisplayName 'KROT zapret Service' `
         -Description 'Local runtime broker for KROT zapret.' `
         -StartupType Manual | Out-Null
+}
+
+$displayNameResult = sc.exe config $serviceName 'DisplayName=' 'KROT zapret Service'
+if ($LASTEXITCODE -ne 0) {
+    throw "Failed to set $serviceName display name: $displayNameResult"
 }
 
 $descriptionResult = sc.exe description $serviceName 'Local runtime broker for KROT zapret.'
