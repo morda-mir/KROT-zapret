@@ -13,5 +13,6 @@
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
     </PackageReference>
+    <Reference Include="System.Net.Http" />
   </ItemGroup>
 </Project>

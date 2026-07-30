@@ -18,12 +18,31 @@ public sealed class BuiltInPresetCatalogTests
     [Fact]
     public void StrategyCatalog_HasExpectedCuratedCounts()
     {
-        Assert.Equal(16, BuiltInStrategyCatalog.Tcp.Count);
+        Assert.Equal(19, BuiltInStrategyCatalog.Tcp.Count);
         Assert.Equal(8, BuiltInStrategyCatalog.Quic.Count);
         Assert.Equal(10, BuiltInStrategyCatalog.Voice.Count);
         Assert.Equal(5, BuiltInStrategyCatalog.Tcp.Count(item => item.Fast));
         Assert.Equal(3, BuiltInStrategyCatalog.Quic.Count(item => item.Fast));
         Assert.Equal(4, BuiltInStrategyCatalog.Voice.Count(item => item.Fast));
+    }
+
+    [Fact]
+    public void Build_AdditionalTcpFallbacks_KeepDistinctTechniques()
+    {
+        var split = BuildTcp("tcp-17-multisplit-seqovl652");
+        Assert.Contains("--dpi-desync-split-seqovl=652", split.MainArguments);
+        Assert.Contains("--dpi-desync-split-pos=2", split.MainArguments);
+
+        var noModification = BuildTcp("tcp-18-fake-default-nomod");
+        Assert.Contains(
+            "--dpi-desync-fake-tls-mod=none",
+            noModification.MainArguments);
+
+        var automatic = BuildTcp("tcp-19-auto-multidisorder");
+        Assert.Contains(
+            "--dpi-desync=fake,multidisorder",
+            automatic.MainArguments);
+        Assert.Contains("--dpi-desync-fake-tls=!", automatic.MainArguments);
     }
 
     [Fact]
@@ -218,6 +237,17 @@ public sealed class BuiltInPresetCatalogTests
                 $"Preset input hash is invalid: {path}");
         }
     }
+
+    private ZapretRuntimePlan BuildTcp(string strategyId) =>
+        _catalog.Build(
+            new KrotStartOptions { Services = { ServiceId.Discord } },
+            new PresetSelection
+            {
+                DiscordTcp = strategyId,
+                YouTubeTcp = PresetSelection.Direct,
+                YouTubeQuic = PresetSelection.Direct,
+                DiscordVoice = PresetSelection.Direct
+            });
 
     [Theory]
     [InlineData("KROT_UDP_WINNER|youtube_quic|quic-03-facebook-r6", "youtube_quic", "quic-03-facebook-r6")]

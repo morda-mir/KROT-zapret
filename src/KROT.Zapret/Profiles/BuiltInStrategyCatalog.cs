@@ -39,7 +39,10 @@ public static class BuiltInStrategyCatalog
         Deep("tcp-13-multidisorder-sniext"),
         Deep("tcp-14-fakedsplit-midsld"),
         Deep("tcp-15-multisplit-iana"),
-        Deep("tcp-16-fake-iana-r11")
+        Deep("tcp-16-fake-iana-r11"),
+        Deep("tcp-17-multisplit-seqovl652"),
+        Deep("tcp-18-fake-default-nomod"),
+        Deep("tcp-19-auto-multidisorder")
     };
 
     public static IReadOnlyList<StrategyDescriptor> Quic { get; } = new[]

@@ -242,6 +242,31 @@ public sealed class BuiltInPresetCatalog
                 "--dpi-desync-fooling=ts",
                 $"--dpi-desync-fake-tls={iana}"
             },
+            "tcp-17-multisplit-seqovl652" => new List<string>
+            {
+                "--dpi-desync=multisplit",
+                "--dpi-desync-split-seqovl=652",
+                "--dpi-desync-split-pos=2",
+                $"--dpi-desync-split-seqovl-pattern={google}"
+            },
+            "tcp-18-fake-default-nomod" => new List<string>
+            {
+                "--dpi-desync=fake",
+                "--dpi-desync-repeats=6",
+                "--dpi-desync-fooling=badseq",
+                "--dpi-desync-badseq-increment=2",
+                "--dpi-desync-fake-tls-mod=none"
+            },
+            "tcp-19-auto-multidisorder" => new List<string>
+            {
+                "--dpi-desync=fake,multidisorder",
+                "--dpi-desync-split-pos=1,midsld",
+                "--dpi-desync-repeats=11",
+                "--dpi-desync-fooling=badseq",
+                "--dpi-desync-fake-tls=0x00000000",
+                "--dpi-desync-fake-tls=!",
+                "--dpi-desync-fake-tls-mod=rnd,dupsid,sni=www.google.com"
+            },
             _ => throw new ArgumentOutOfRangeException(nameof(strategyId), strategyId, "Unknown TCP strategy.")
         };
 
