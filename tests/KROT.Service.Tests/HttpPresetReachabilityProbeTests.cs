@@ -48,6 +48,20 @@ public sealed class HttpPresetReachabilityProbeTests
             HttpPresetReachabilityProbe.RequiredEndpointsReachable(complete));
     }
 
+    [Fact]
+    public void DiscordProbe_AcceptsGatewayAndMediaWhenDiagnosticApiTimesOut()
+    {
+        var results = new[]
+        {
+            Failed("api", "discord.com", required: false),
+            Response("gateway", "gateway.discord.gg", required: true),
+            Response("media", "cdn.discordapp.com", required: true)
+        };
+
+        Assert.True(
+            HttpPresetReachabilityProbe.RequiredEndpointsReachable(results));
+    }
+
     [Theory]
     [MemberData(nameof(FailureCases))]
     public void DescribeRequestFailure_ReportsUsefulNetworkCategory(

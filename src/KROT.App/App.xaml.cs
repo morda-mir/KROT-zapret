@@ -17,7 +17,10 @@ namespace KROT.App;
 public partial class App
 {
     private const string SingleInstanceMutexName = "Local\\KROT-zapret-GUI-v1";
+    private const string ActivateEventName = "Local\\KROT-zapret-GUI-activate-v1";
     private Mutex? _singleInstanceMutex;
+    private EventWaitHandle? _activateEvent;
+    private RegisteredWaitHandle? _activateRegistration;
     private MainWindowViewModel? _viewModel;
 
     protected override async void OnStartup(StartupEventArgs e)
@@ -26,9 +29,37 @@ public partial class App
         _singleInstanceMutex = new Mutex(initiallyOwned: true, SingleInstanceMutexName, out var ownsMutex);
         if (!ownsMutex)
         {
+            try
+            {
+                using var activateEvent =
+                    EventWaitHandle.OpenExisting(ActivateEventName);
+                activateEvent.Set();
+            }
+            catch (WaitHandleCannotBeOpenedException)
+            {
+                // The first process is still starting.
+            }
+
             Shutdown();
             return;
         }
+
+        _activateEvent = new EventWaitHandle(
+            false,
+            EventResetMode.AutoReset,
+            ActivateEventName);
+        _activateRegistration = ThreadPool.RegisterWaitForSingleObject(
+            _activateEvent,
+            (_, _) => Dispatcher.BeginInvoke(new Action(() =>
+            {
+                if (MainWindow is MainWindow window)
+                {
+                    window.RestoreFromTray();
+                }
+            })),
+            null,
+            Timeout.Infinite,
+            executeOnlyOnce: false);
 
         var log = new RotatingFileLogService(detailed: false);
         try
@@ -77,6 +108,7 @@ public partial class App
             if (autoStartLaunch)
             {
                 window.WindowState = WindowState.Minimized;
+                await _viewModel.RestoreRuntimeIfNeededAsync();
             }
         }
         catch (Exception ex)
@@ -99,6 +131,8 @@ public partial class App
     protected override void OnExit(ExitEventArgs e)
     {
         _viewModel?.Dispose();
+        _activateRegistration?.Unregister(null);
+        _activateEvent?.Dispose();
         if (_singleInstanceMutex != null)
         {
             try

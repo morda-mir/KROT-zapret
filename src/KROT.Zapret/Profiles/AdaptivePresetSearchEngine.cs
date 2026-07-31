@@ -78,6 +78,12 @@ public sealed class AdaptivePresetSearchEngine
         var cached = await _cache
             .LoadAsync(networkFingerprint, cancellationToken)
             .ConfigureAwait(false);
+        _log.Detail(
+            cached == null ? "preset.cache.miss" : "preset.cache.hit",
+            cached == null
+                ? $"No preset cache entry for network {ShortFingerprint(networkFingerprint)}."
+                : $"Loaded preset cache entry for network {ShortFingerprint(networkFingerprint)}: "
+                  + DescribeSelection(cached));
         var chosen = cached?.Clone() ?? new PresetSelection();
         Normalize(chosen, directAllowed: allowSearch);
 
@@ -146,10 +152,10 @@ public sealed class AdaptivePresetSearchEngine
         var directServices = unresolved
             .Where(serviceId =>
                 cached == null
-                || !string.Equals(
-                    GetTcp(cached, serviceId),
-                    PresetSelection.Direct,
-                    StringComparison.Ordinal))
+                    || !string.Equals(
+                        GetTcp(cached, serviceId),
+                        PresetSelection.Direct,
+                        StringComparison.Ordinal))
             .ToArray();
         if (directServices.Length > 0)
         {
@@ -210,7 +216,9 @@ public sealed class AdaptivePresetSearchEngine
                 cancellationToken.ThrowIfCancellationRequested();
                 var trial = chosen.Clone();
                 var attempted = new List<ServiceId>();
-                foreach (var serviceId in unresolved.ToArray())
+                foreach (var serviceId in unresolved
+                             .Where(candidates.ContainsKey)
+                             .ToArray())
                 {
                     if (candidates[serviceId].Count == 0)
                     {
@@ -241,6 +249,13 @@ public sealed class AdaptivePresetSearchEngine
                         attempted,
                         cancellationToken)
                     .ConfigureAwait(false);
+            }
+
+            foreach (var serviceId in unresolved)
+            {
+                _log.Info(
+                    "preset.search.exhausted",
+                    $"All TCP strategies were exhausted for {serviceId}.");
             }
         }
 
@@ -313,6 +328,78 @@ public sealed class AdaptivePresetSearchEngine
         await _cache
             .SaveAsync(networkFingerprint, normalized, cancellationToken)
             .ConfigureAwait(false);
+    }
+
+    public async Task<PresetSearchOutcome> RefreshServiceAsync(
+        KrotStartOptions options,
+        string networkFingerprint,
+        PresetSelection currentSelection,
+        ServiceId serviceId,
+        bool allowSearch,
+        CancellationToken cancellationToken)
+    {
+        if (!IsTcpService(serviceId) || !options.Services.Contains(serviceId))
+        {
+            throw new InvalidOperationException(
+                "The requested service is not active.");
+        }
+
+        var original = currentSelection.Clone();
+        Normalize(original, directAllowed: allowSearch);
+        var candidates = new List<string> { GetTcp(original, serviceId) };
+        if (allowSearch)
+        {
+            candidates.Add(PresetSelection.Direct);
+            candidates.AddRange(BuiltInStrategyCatalog.Tcp.Select(item => item.Id));
+        }
+
+        foreach (var candidate in candidates.Distinct(StringComparer.Ordinal))
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            var trial = original.Clone();
+            SetTcp(trial, serviceId, candidate);
+            var plan = _presetCatalog.Build(options, trial);
+            await StartOrReplaceMainAsync(plan, cancellationToken).ConfigureAwait(false);
+            _log.Detail(
+                "preset.refresh.try",
+                $"Testing TCP strategy for {serviceId}={candidate}.");
+            if (!await _probe
+                    .CheckAsync(serviceId, cancellationToken)
+                    .ConfigureAwait(false))
+            {
+                continue;
+            }
+
+            await _cache
+                .SaveAsync(networkFingerprint, trial, cancellationToken)
+                .ConfigureAwait(false);
+            _log.Info(
+                "preset.refresh.winner",
+                $"Selected {candidate} for {serviceId}; other service profiles were preserved.");
+            return new PresetSearchOutcome
+            {
+                Selection = trial,
+                Plan = plan,
+                AllTcpReachable = true,
+                TcpReachability =
+                    new Dictionary<ServiceId, bool?> { [serviceId] = true }
+            };
+        }
+
+        var restoredPlan = _presetCatalog.Build(options, original);
+        await StartOrReplaceMainAsync(restoredPlan, cancellationToken)
+            .ConfigureAwait(false);
+        _log.Info(
+            "preset.refresh.exhausted",
+            $"No working TCP strategy was found for {serviceId}; the previous profiles were restored.");
+        return new PresetSearchOutcome
+        {
+            Selection = original,
+            Plan = restoredPlan,
+            AllTcpReachable = false,
+            TcpReachability =
+                new Dictionary<ServiceId, bool?> { [serviceId] = false }
+        };
     }
 
     private async Task StartOrReplaceMainAsync(
@@ -392,6 +479,14 @@ public sealed class AdaptivePresetSearchEngine
 
     private static bool IsTcpService(ServiceId serviceId) =>
         serviceId is ServiceId.Discord or ServiceId.YouTube;
+
+    private static string ShortFingerprint(string fingerprint) =>
+        string.IsNullOrEmpty(fingerprint)
+            ? "unknown"
+            : fingerprint.Substring(0, Math.Min(12, fingerprint.Length));
+
+    private static string DescribeSelection(PresetSelection selection) =>
+        $"discord={selection.DiscordTcp},youtube={selection.YouTubeTcp}";
 
     private static IReadOnlyDictionary<ServiceId, bool?> Reachability(
         IEnumerable<ServiceId> selected,

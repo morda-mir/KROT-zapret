@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using Newtonsoft.Json;
 
 namespace KROT.Diagnostics.FieldTesting;
 
@@ -31,6 +32,9 @@ public sealed class NetworkEnvironmentSummary
     public string FingerprintSha256 { get; set; } = string.Empty;
 
     public List<AdapterSummary> Adapters { get; set; } = new();
+
+    [JsonIgnore]
+    public string DetectionReason { get; set; } = string.Empty;
 }
 
 public sealed class AdapterSummary
@@ -43,7 +47,15 @@ public sealed class AdapterSummary
 
     public bool LikelyVpn { get; set; }
 
+    public bool VpnMarkerMatched { get; set; }
+
     public int DnsServerCount { get; set; }
+
+    [JsonIgnore]
+    public string Name { get; set; } = string.Empty;
+
+    [JsonIgnore]
+    public string Description { get; set; } = string.Empty;
 }
 
 public sealed class ServiceProbeResult

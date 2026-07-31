@@ -138,7 +138,7 @@ public partial class MainWindow
         }
     }
 
-    private void RestoreFromTray()
+    public void RestoreFromTray()
     {
         ShowInTaskbar = true;
         Show();

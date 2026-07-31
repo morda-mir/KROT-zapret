@@ -26,17 +26,17 @@ public sealed class NamedPipeServiceClient : IServiceClient
     public event EventHandler<ServiceSnapshot>? SnapshotChanged;
 
     public Task<ServiceSnapshot> GetStatusAsync(CancellationToken cancellationToken) =>
-        SendAsync("status", null, null, cancellationToken);
+        SendAsync("status", null, null, null, cancellationToken);
 
     public async Task StartAsync(KrotStartOptions options, CancellationToken cancellationToken)
     {
-        var snapshot = await SendAsync("start", options, null, cancellationToken);
+        var snapshot = await SendAsync("start", options, null, null, cancellationToken);
         SnapshotChanged?.Invoke(this, snapshot);
     }
 
     public async Task StopAsync(CancellationToken cancellationToken)
     {
-        var snapshot = await SendAsync("stop", null, null, cancellationToken);
+        var snapshot = await SendAsync("stop", null, null, null, cancellationToken);
         SnapshotChanged?.Invoke(this, snapshot);
     }
 
@@ -48,6 +48,20 @@ public sealed class NamedPipeServiceClient : IServiceClient
             "set-detailed-logs",
             null,
             enabled,
+            null,
+            cancellationToken);
+        SnapshotChanged?.Invoke(this, snapshot);
+    }
+
+    public async Task RefreshServiceAsync(
+        ServiceId serviceId,
+        CancellationToken cancellationToken)
+    {
+        var snapshot = await SendAsync(
+            "refresh-service",
+            null,
+            null,
+            serviceId,
             cancellationToken);
         SnapshotChanged?.Invoke(this, snapshot);
     }
@@ -62,13 +76,14 @@ public sealed class NamedPipeServiceClient : IServiceClient
         using var timeout =
             CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
         timeout.CancelAfter(ShutdownTimeout);
-        await SendAsync("shutdown", null, null, timeout.Token);
+        await SendAsync("shutdown", null, null, null, timeout.Token);
     }
 
     private static async Task<ServiceSnapshot> SendAsync(
         string command,
         KrotStartOptions? options,
         bool? detailedLogs,
+        ServiceId? serviceId,
         CancellationToken cancellationToken)
     {
         await EnsureServiceRunningAsync(cancellationToken).ConfigureAwait(false);
@@ -89,14 +104,15 @@ public sealed class NamedPipeServiceClient : IServiceClient
         {
             Command = command,
             StartOptions = options,
-            DetailedLogs = detailedLogs
+            DetailedLogs = detailedLogs,
+            ServiceId = serviceId
         };
         await writer.WriteLineAsync(JsonConvert.SerializeObject(request)).ConfigureAwait(false);
         var line = await BoundedUtf8LineReader
             .ReadAsync(
                 pipe,
                 MaxResponseBytes,
-                string.Equals(command, "start", StringComparison.Ordinal)
+                command is "start" or "refresh-service"
                     ? StartResponseTimeout
                     : ShortResponseTimeout,
                 cancellationToken)

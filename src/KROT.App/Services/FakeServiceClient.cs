@@ -60,6 +60,23 @@ public sealed class FakeServiceClient : IServiceClient
         return Task.CompletedTask;
     }
 
+    public async Task RefreshServiceAsync(
+        ServiceId serviceId,
+        CancellationToken cancellationToken)
+    {
+        if (_options?.Services.Contains(serviceId) != true
+            || _stateMachine.State != AppState.Running)
+        {
+            throw new InvalidOperationException("The requested service is not active.");
+        }
+
+        SnapshotChanged?.Invoke(
+            this,
+            CreateSnapshot(serviceId, ChannelState.Searching));
+        await Task.Delay(650, cancellationToken);
+        SnapshotChanged?.Invoke(this, CreateSnapshot());
+    }
+
     private async Task SetStateAsync(AppState state, int delayMilliseconds, CancellationToken cancellationToken)
     {
         _stateMachine.TransitionTo(state);
@@ -70,7 +87,9 @@ public sealed class FakeServiceClient : IServiceClient
         }
     }
 
-    private ServiceSnapshot CreateSnapshot()
+    private ServiceSnapshot CreateSnapshot(
+        ServiceId? overriddenService = null,
+        ChannelState overriddenState = ChannelState.Unknown)
     {
         var snapshot = new ServiceSnapshot
         {
@@ -92,21 +111,26 @@ public sealed class FakeServiceClient : IServiceClient
             return snapshot;
         }
 
-        Add(snapshot, ServiceId.Discord, "text");
-        Add(snapshot, ServiceId.Discord, "media");
-        Add(snapshot, ServiceId.Discord, "voice");
-        Add(snapshot, ServiceId.YouTube, "site");
-        Add(snapshot, ServiceId.YouTube, "video");
+        Add(snapshot, ServiceId.Discord, "text", overriddenService, overriddenState);
+        Add(snapshot, ServiceId.Discord, "media", overriddenService, overriddenState);
+        Add(snapshot, ServiceId.Discord, "voice", overriddenService, overriddenState);
+        Add(snapshot, ServiceId.YouTube, "site", overriddenService, overriddenState);
+        Add(snapshot, ServiceId.YouTube, "video", overriddenService, overriddenState);
         return snapshot;
     }
 
     private void Add(
         ServiceSnapshot snapshot,
         ServiceId serviceId,
-        string channelId)
+        string channelId,
+        ServiceId? overriddenService,
+        ChannelState overriddenState)
     {
         var selected = _options?.Services.Contains(serviceId) == true;
-        var state = !selected
+        var state = overriddenService == serviceId
+            && !(serviceId == ServiceId.Discord && channelId == "voice")
+            ? overriddenState
+            : !selected
             ? ChannelState.Disabled
             : _stateMachine.State switch
             {

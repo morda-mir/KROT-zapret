@@ -4,7 +4,7 @@ namespace KROT.Core.Ipc;
 
 public static class ServiceProtocol
 {
-    public const int Version = 5;
+    public const int Version = 6;
 
     public static string PipeNameForSid(string sid) =>
         $"KROT.Service.v{Version}.{sid.Replace('-', '_')}";
@@ -19,6 +19,8 @@ public sealed class ServiceRequest
     public KrotStartOptions? StartOptions { get; set; }
 
     public bool? DetailedLogs { get; set; }
+
+    public ServiceId? ServiceId { get; set; }
 }
 
 public sealed class ServiceResponse

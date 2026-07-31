@@ -187,6 +187,91 @@ public sealed class AdaptivePresetSearchEngineTests
         Assert.Equal(1, processManager.StartMainCount);
     }
 
+    [Fact]
+    public async Task FailedSavedProfile_AlwaysSearchesCatalogAgain()
+    {
+        var processManager = new RecordingProcessManager();
+        var probe = new QueueProbe();
+        probe.Add(ServiceId.Discord, false);
+        var cache = new MemoryCache
+        {
+            Value = new PresetSelection
+            {
+                DiscordTcp = BuiltInStrategyCatalog.DefaultTcpId
+            }
+        };
+        var stages = new List<PresetSearchStage>();
+        var engine = Create(processManager, probe, cache);
+
+        var outcome = await engine.StartMainAsync(
+            Options(ServiceId.Discord),
+            "network-exhausted",
+            allowSearch: true,
+            stages.Add,
+            CancellationToken.None);
+
+        Assert.False(outcome.AllTcpReachable);
+        Assert.True(probe.CallCount > 1);
+        Assert.Contains(PresetSearchStage.Searching, stages);
+    }
+
+    [Fact]
+    public async Task RefreshService_PreservesOtherServiceProfile()
+    {
+        var processManager = new RecordingProcessManager();
+        var probe = new QueueProbe();
+        probe.Add(ServiceId.Discord, false, true);
+        var cache = new MemoryCache();
+        var current = new PresetSelection
+        {
+            DiscordTcp = "tcp-03-fake-badseq",
+            YouTubeTcp = "tcp-05-multisplit-seqovl"
+        };
+        var engine = Create(processManager, probe, cache);
+
+        var outcome = await engine.RefreshServiceAsync(
+            Options(ServiceId.Discord, ServiceId.YouTube),
+            "network-refresh",
+            current,
+            ServiceId.Discord,
+            allowSearch: true,
+            CancellationToken.None);
+
+        Assert.True(outcome.AllTcpReachable);
+        Assert.Equal("tcp-05-multisplit-seqovl", outcome.Selection.YouTubeTcp);
+        Assert.NotEqual("tcp-03-fake-badseq", outcome.Selection.DiscordTcp);
+    }
+
+    [Fact]
+    public async Task ExhaustedCatalog_IsRepeatedOnImmediateRestart()
+    {
+        var processManager = new RecordingProcessManager();
+        var probe = new QueueProbe();
+        var cache = new MemoryCache();
+        var engine = Create(processManager, probe, cache);
+
+        var first = await engine.StartMainAsync(
+            Options(ServiceId.Discord),
+            "network-repeat",
+            allowSearch: true,
+            stageChanged: null,
+            CancellationToken.None);
+        var firstCallCount = probe.CallCount;
+        var restartStages = new List<PresetSearchStage>();
+        var second = await engine.StartMainAsync(
+            Options(ServiceId.Discord),
+            "network-repeat",
+            allowSearch: true,
+            restartStages.Add,
+            CancellationToken.None);
+
+        Assert.False(first.AllTcpReachable);
+        Assert.False(second.AllTcpReachable);
+        Assert.True(firstCallCount > 1);
+        Assert.True(probe.CallCount > firstCallCount + 1);
+        Assert.Contains(PresetSearchStage.Searching, restartStages);
+    }
+
     private AdaptivePresetSearchEngine Create(
         IZapretProcessManager processManager,
         IPresetReachabilityProbe probe,

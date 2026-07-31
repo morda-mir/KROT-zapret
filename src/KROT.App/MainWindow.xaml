@@ -126,6 +126,7 @@
                   <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="48" />
                     <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="30" />
                     <ColumnDefinition Width="36" />
                   </Grid.ColumnDefinitions>
 
@@ -242,7 +243,39 @@
                     </ItemsControl.ItemTemplate>
                   </ItemsControl>
 
-                  <CheckBox Grid.Column="2"
+                  <Button Grid.Column="2"
+                          Width="24"
+                          Height="24"
+                          Padding="4"
+                          Margin="0"
+                          Background="Transparent"
+                          BorderThickness="0"
+                          Command="{Binding RefreshCommand}"
+                          HorizontalAlignment="Center"
+                          VerticalAlignment="Center"
+                          FocusVisualStyle="{x:Null}">
+                    <Button.Style>
+                      <Style TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
+                        <Setter Property="Visibility" Value="Hidden" />
+                        <Style.Triggers>
+                          <DataTrigger Binding="{Binding CanRefresh}" Value="True">
+                            <Setter Property="Visibility" Value="Visible" />
+                          </DataTrigger>
+                        </Style.Triggers>
+                      </Style>
+                    </Button.Style>
+                    <Viewbox Width="16" Height="16" Stretch="Uniform">
+                      <Path Data="M19,8 A7,7 0 1 0 19,16 M19,4 V8 H15"
+                            Fill="Transparent"
+                            Stroke="#8B959D"
+                            StrokeThickness="1.8"
+                            StrokeStartLineCap="Round"
+                            StrokeEndLineCap="Round"
+                            StrokeLineJoin="Round" />
+                    </Viewbox>
+                  </Button>
+
+                  <CheckBox Grid.Column="3"
                             Style="{StaticResource ServiceCheckBox}"
                             IsChecked="{Binding IsSelected}"
                             IsEnabled="{Binding CanEdit}"
