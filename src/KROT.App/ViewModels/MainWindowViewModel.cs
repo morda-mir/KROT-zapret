@@ -303,6 +303,35 @@ public sealed class MainWindowViewModel : ObservableObject, IDisposable
         _updatePollingTask = PollForUpdatesAsync(_lifetime.Token);
     }
 
+    public async Task RestoreRuntimeIfNeededAsync()
+    {
+        if (!_settings.AutoStart || !_settings.RestoreEnabledState)
+        {
+            return;
+        }
+
+        try
+        {
+            var snapshot = await _serviceClient
+                .GetStatusAsync(_lifetime.Token);
+            OnSnapshotChanged(this, snapshot);
+            if (snapshot.AppState is AppState.Off or AppState.FatalError)
+            {
+                await StartRuntimeAsync();
+            }
+        }
+        catch (OperationCanceledException) when (_lifetime.IsCancellationRequested)
+        {
+        }
+        catch (Exception ex)
+        {
+            _log.Error(
+                "runtime.autostart.restore.failed",
+                "Failed to restore the remembered runtime state.",
+                ex);
+        }
+    }
+
     public async Task StopForExitAsync()
     {
         await SaveSettingsSafeAsync(CancellationToken.None);
@@ -420,6 +449,8 @@ public sealed class MainWindowViewModel : ObservableObject, IDisposable
         {
             if (AppState is not (AppState.Off or AppState.FatalError))
             {
+                _settings.RestoreEnabledState = false;
+                await SaveSettingsSafeAsync();
                 AppState = AppState.Stopping;
                 UpdateChannelStates(new ServiceSnapshot { AppState = AppState.Stopping });
                 await _serviceClient.StopAsync(_lifetime.Token);
@@ -431,14 +462,9 @@ public sealed class MainWindowViewModel : ObservableObject, IDisposable
                     await _serviceClient.StopAsync(_lifetime.Token);
                 }
 
-                AppState = AppState.Starting;
-                UpdateChannelStates(new ServiceSnapshot { AppState = AppState.Starting });
-                var options = new KrotStartOptions
-                {
-                    Services = Services.Where(x => x.IsSelected).Select(x => x.Id).ToList(),
-                    DetailedLogs = DetailedLogs
-                };
-                await _serviceClient.StartAsync(options, _lifetime.Token);
+                _settings.RestoreEnabledState = true;
+                await SaveSettingsSafeAsync();
+                await StartRuntimeAsync();
             }
         }
         catch (OperationCanceledException)
@@ -507,6 +533,7 @@ public sealed class MainWindowViewModel : ObservableObject, IDisposable
             }
 
             service.RefreshChannels();
+            service.UpdateCanRefresh(IsRunning);
         }
 
         OnPropertyChanged(nameof(Services));
@@ -556,6 +583,7 @@ public sealed class MainWindowViewModel : ObservableObject, IDisposable
                 "pack://application:,,,/KROT;component/assets/services/discord-512px.png",
                 IsSelected(ServiceId.Discord),
                 OnServiceSelectionChanged,
+                RefreshServiceAsync,
                 Channel(
                     "text",
                     "M6,2 H19 V21 H6 Z M3,5 H6 M3,5 V23 H17 V21 M9,7 H16 M9,11 H16 M9,15 H16 M9,19 H16",
@@ -574,6 +602,7 @@ public sealed class MainWindowViewModel : ObservableObject, IDisposable
                 "pack://application:,,,/KROT;component/assets/services/youtube-512px.png",
                 IsSelected(ServiceId.YouTube),
                 OnServiceSelectionChanged,
+                RefreshServiceAsync,
                 Channel(
                     "site",
                     "M6,2 H19 V21 H6 Z M3,5 H6 M3,5 V23 H17 V21 M9,7 H16 M9,11 H16 M9,15 H16 M9,19 H16",
@@ -611,6 +640,45 @@ public sealed class MainWindowViewModel : ObservableObject, IDisposable
         _ = SaveSettingsSafeAsync();
         UpdateChannelStates(_lastSnapshot);
         ToggleRuntimeCommand.NotifyCanExecuteChanged();
+    }
+
+    private async Task RefreshServiceAsync(ServiceItemViewModel item)
+    {
+        item.UpdateCanRefresh(runtimeConnected: false);
+        try
+        {
+            await _serviceClient
+                .RefreshServiceAsync(item.Id, _lifetime.Token);
+        }
+        catch (OperationCanceledException) when (_lifetime.IsCancellationRequested)
+        {
+        }
+        catch (Exception ex)
+        {
+            _log.Error(
+                "runtime.service.refresh.failed",
+                $"Failed to refresh {item.Id}.",
+                ex);
+        }
+        finally
+        {
+            item.UpdateCanRefresh(IsRunning);
+        }
+    }
+
+    private async Task StartRuntimeAsync()
+    {
+        AppState = AppState.Starting;
+        UpdateChannelStates(new ServiceSnapshot { AppState = AppState.Starting });
+        var options = new KrotStartOptions
+        {
+            Services = Services
+                .Where(item => item.IsSelected)
+                .Select(item => item.Id)
+                .ToList(),
+            DetailedLogs = DetailedLogs
+        };
+        await _serviceClient.StartAsync(options, _lifetime.Token);
     }
 
     private Task SaveSettingsSafeAsync() =>

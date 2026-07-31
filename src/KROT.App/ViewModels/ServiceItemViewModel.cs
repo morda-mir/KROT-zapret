@@ -1,6 +1,9 @@
 using System;
 using System.Collections.ObjectModel;
+using System.Linq;
+using System.Threading.Tasks;
 using CommunityToolkit.Mvvm.ComponentModel;
+using CommunityToolkit.Mvvm.Input;
 using KROT.Core.Models;
 
 namespace KROT.App.ViewModels;
@@ -16,6 +19,7 @@ public sealed class ServiceItemViewModel : ObservableObject
         string iconSource,
         bool isSelected,
         Action<ServiceItemViewModel> selectionChanged,
+        Func<ServiceItemViewModel, Task> refreshRequested,
         params ChannelIndicatorViewModel[] channels)
     {
         Id = id;
@@ -23,6 +27,9 @@ public sealed class ServiceItemViewModel : ObservableObject
         IconSource = iconSource;
         _isSelected = isSelected;
         SelectionChanged = selectionChanged;
+        RefreshCommand = new AsyncRelayCommand(
+            () => refreshRequested(this),
+            () => CanRefresh);
         Channels = new ObservableCollection<ChannelIndicatorViewModel>(channels);
     }
 
@@ -35,6 +42,10 @@ public sealed class ServiceItemViewModel : ObservableObject
     public ObservableCollection<ChannelIndicatorViewModel> Channels { get; }
 
     public Action<ServiceItemViewModel> SelectionChanged { get; }
+
+    public IAsyncRelayCommand RefreshCommand { get; }
+
+    public bool CanRefresh { get; private set; }
 
     public bool IsSelected
     {
@@ -57,5 +68,20 @@ public sealed class ServiceItemViewModel : ObservableObject
     public void RefreshChannels()
     {
         OnPropertyChanged(nameof(Channels));
+    }
+
+    public void UpdateCanRefresh(bool runtimeConnected)
+    {
+        var value = runtimeConnected
+                    && IsSelected
+                    && Channels.All(channel => !channel.IsBusy);
+        if (CanRefresh == value)
+        {
+            return;
+        }
+
+        CanRefresh = value;
+        OnPropertyChanged(nameof(CanRefresh));
+        RefreshCommand.NotifyCanExecuteChanged();
     }
 }

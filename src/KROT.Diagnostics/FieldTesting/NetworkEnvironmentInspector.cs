@@ -44,14 +44,24 @@ public sealed class NetworkEnvironmentInspector
             "|",
             active.Select(NormalizeAdapter).OrderBy(value => value, StringComparer.Ordinal));
         var proxyDetected = IsSystemProxyConfigured();
+        var reasons = new List<string>();
+        if (proxyDetected)
+        {
+            reasons.Add("system proxy");
+        }
 
         return new NetworkEnvironmentSummary
         {
             ActiveAdapterCount = active.Length,
-            VpnLikely = summaries.Any(adapter => adapter.LikelyVpn) || proxyDetected,
+            // Some clients keep a routed TUN adapter alive even when their UI
+            // connection is disabled. Preserve adapter markers for diagnostics,
+            // but only report an actionable external tunnel when Windows has
+            // an explicit system proxy configured.
+            VpnLikely = ShouldReportExternalTunnel(proxyDetected),
             SystemProxyDetected = proxyDetected,
             FingerprintSha256 = Sha256(fingerprintSource),
-            Adapters = summaries
+            Adapters = summaries,
+            DetectionReason = string.Join("; ", reasons)
         };
     }
 
@@ -74,18 +84,33 @@ public sealed class NetworkEnvironmentInspector
         return VpnMarkers.Any(searchable.Contains);
     }
 
+    public static bool IsActiveVpn(
+        string name,
+        string description,
+        NetworkInterfaceType interfaceType,
+        bool hasDefaultGateway) =>
+        hasDefaultGateway && IsLikelyVpn(name, description, interfaceType);
+
+    public static bool ShouldReportExternalTunnel(bool systemProxyDetected) =>
+        systemProxyDetected;
+
     private AdapterSummary CreateSummary(NetworkInterface adapter)
     {
         var properties = adapter.GetIPProperties();
+        var hasDefaultGateway = properties.GatewayAddresses.Any(
+            gateway => !gateway.Address.Equals(IPAddress.Any)
+                       && !gateway.Address.Equals(IPAddress.IPv6Any));
+        var markerMatched = IsLikelyVpn(adapter);
         return new AdapterSummary
         {
             IdSha256 = Sha256(adapter.Id),
             InterfaceType = adapter.NetworkInterfaceType.ToString(),
-            HasDefaultGateway = properties.GatewayAddresses.Any(
-                gateway => !gateway.Address.Equals(IPAddress.Any)
-                           && !gateway.Address.Equals(IPAddress.IPv6Any)),
-            LikelyVpn = IsLikelyVpn(adapter),
-            DnsServerCount = properties.DnsAddresses.Count
+            HasDefaultGateway = hasDefaultGateway,
+            LikelyVpn = markerMatched && hasDefaultGateway,
+            VpnMarkerMatched = markerMatched,
+            DnsServerCount = properties.DnsAddresses.Count,
+            Name = adapter.Name,
+            Description = adapter.Description
         };
     }
 

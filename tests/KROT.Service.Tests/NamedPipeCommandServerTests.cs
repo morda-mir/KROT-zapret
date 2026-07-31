@@ -61,9 +61,19 @@ public sealed class NamedPipeCommandServerTests
         });
         await processManager.StartEntered.Task;
 
-        var statusResponse = await SendAsync(
-            pipeName,
-            new ServiceRequest { Command = "status" });
+        ServiceResponse statusResponse;
+        try
+        {
+            statusResponse = await SendAsync(
+                pipeName,
+                new ServiceRequest { Command = "status" });
+        }
+        catch (Exception exception)
+        {
+            throw new InvalidOperationException(
+                string.Join(Environment.NewLine, log.Messages),
+                exception);
+        }
         Assert.True(statusResponse.Success);
         Assert.NotEqual(KROT.Core.States.AppState.Off, statusResponse.Snapshot.AppState);
 
@@ -202,19 +212,18 @@ public sealed class NamedPipeCommandServerTests
 
     private sealed class ConfigurableNullLog : IConfigurableLogService
     {
+        public List<string> Messages { get; } = new();
+
         public bool Detailed { get; set; }
 
-        public void Info(string eventName, string message)
-        {
-        }
+        public void Info(string eventName, string message) =>
+            Messages.Add($"{eventName}: {message}");
 
-        public void Detail(string eventName, string message)
-        {
-        }
+        public void Detail(string eventName, string message) =>
+            Messages.Add($"{eventName}: {message}");
 
-        public void Error(string eventName, string message, Exception? exception = null)
-        {
-        }
+        public void Error(string eventName, string message, Exception? exception = null) =>
+            Messages.Add($"{eventName}: {message} {exception}");
     }
 
     private sealed class AlwaysOnlineProbe : IInternetAvailabilityProbe

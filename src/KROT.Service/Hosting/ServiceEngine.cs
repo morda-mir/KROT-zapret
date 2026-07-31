@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using System.Net.NetworkInformation;
 using System.Threading;
@@ -32,6 +33,7 @@ public sealed class ServiceEngine
     private readonly bool _isFakeRuntime;
     private readonly TimeSpan _udpConfirmationTimeout;
     private readonly SemaphoreSlim _gate = new(1, 1);
+    private readonly SemaphoreSlim _tcpProbeGate = new(1, 1);
     private readonly SemaphoreSlim _healthSignal = new(0, 1);
     private readonly AppStateMachine _stateMachine = new();
     private readonly object _healthSync = new();
@@ -46,6 +48,7 @@ public sealed class ServiceEngine
     private PresetSelection? _activeSelection;
     private readonly Dictionary<ServiceId, bool?> _tcpReachability = new();
     private readonly Dictionary<ServiceId, DateTime> _tcpCheckingUntilUtc = new();
+    private readonly HashSet<ServiceId> _refreshingTcpServices = new();
     private readonly HashSet<string> _confirmedUdpChannels =
         new(StringComparer.Ordinal);
     private readonly HashSet<string> _activeUdpChannels =
@@ -129,7 +132,9 @@ public sealed class ServiceEngine
 
             _log.Info(
                 "runtime.starting",
-                $"Starting KROT runtime for {options.Services.Count} selected service(s).");
+                "Starting KROT runtime for services="
+                + string.Join(",", options.Services.Distinct())
+                + ".");
 
             _stateMachine.TransitionTo(AppState.TestingDirect);
             ZapretRuntimePlan plan;
@@ -160,14 +165,29 @@ public sealed class ServiceEngine
                 var network = _networkInspector.Inspect();
                 networkFingerprint = network.FingerprintSha256;
                 externalTunnelDetected = network.VpnLikely;
+                if (network.VpnLikely)
+                {
+                    _log.Info(
+                        "network.external-tunnel.detected",
+                        "VPN or system proxy detected: "
+                        + network.DetectionReason
+                        + ".");
+                }
+
+                var searchTimer = Stopwatch.StartNew();
                 var outcome = await _presetSearch
                     .StartMainAsync(
                         options,
                         network.FingerprintSha256,
-                        allowSearch: !network.VpnLikely,
+                        allowSearch: true,
                         OnPresetSearchStageChanged,
                         startCancellation.Token)
                     .ConfigureAwait(false);
+                searchTimer.Stop();
+                _log.Info(
+                    "preset.selection.completed",
+                    $"TCP preset selection completed in {searchTimer.ElapsedMilliseconds} ms; "
+                    + $"all-reachable={outcome.AllTcpReachable}.");
                 plan = outcome.Plan;
                 allTcpReachable = outcome.AllTcpReachable;
                 selection = outcome.Selection;
@@ -289,6 +309,132 @@ public sealed class ServiceEngine
         finally
         {
             _gate.Release();
+        }
+    }
+
+    public async Task RefreshServiceAsync(
+        ServiceId serviceId,
+        CancellationToken cancellationToken)
+    {
+        using var refreshCancellation =
+            CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        lock (_startSync)
+        {
+            if (_activeStartCancellation != null)
+            {
+                throw new InvalidOperationException(
+                    "Another runtime operation is already in progress.");
+            }
+
+            _activeStartCancellation = refreshCancellation;
+        }
+
+        var gateHeld = false;
+        try
+        {
+            await _gate
+                .WaitAsync(refreshCancellation.Token)
+                .ConfigureAwait(false);
+            gateHeld = true;
+            KrotStartOptions options;
+            PresetSelection selection;
+            bool refreshConfirmedVoice;
+            lock (_sessionSync)
+            {
+                if (_activeOptions == null
+                    || _activeSelection == null
+                    || !_activeOptions.Services.Contains(serviceId)
+                    || _stateMachine.State is not (
+                        AppState.Running or AppState.PartialFailure))
+                {
+                    throw new InvalidOperationException(
+                        "The requested service is not active.");
+                }
+
+                options = CloneOptions(_activeOptions)!;
+                selection = _activeSelection.Clone();
+                refreshConfirmedVoice =
+                    serviceId == ServiceId.Discord
+                    && _confirmedUdpChannels.Contains("discord_voice");
+                _refreshingTcpServices.Add(serviceId);
+            }
+
+            var network = _networkInspector.Inspect();
+            SetExternalTunnelDetected(network.VpnLikely, network.DetectionReason);
+            PresetSearchOutcome outcome;
+            await _tcpProbeGate
+                .WaitAsync(refreshCancellation.Token)
+                .ConfigureAwait(false);
+            try
+            {
+                outcome = await _presetSearch
+                    .RefreshServiceAsync(
+                        options,
+                        network.FingerprintSha256,
+                        selection,
+                        serviceId,
+                        allowSearch: true,
+                        refreshCancellation.Token)
+                    .ConfigureAwait(false);
+            }
+            finally
+            {
+                _tcpProbeGate.Release();
+            }
+
+            lock (_sessionSync)
+            {
+                _activeSelection = outcome.Selection.Clone();
+                _activeNetworkFingerprint = network.FingerprintSha256;
+                _tcpReachability[serviceId] = outcome.AllTcpReachable;
+                if (refreshConfirmedVoice)
+                {
+                    _confirmedUdpChannels.Remove("discord_voice");
+                    _failedUdpChannels.Remove("discord_voice");
+                    _activeUdpChannels.Remove("discord_voice");
+                    _udpAttemptGenerations.Remove("discord_voice");
+                }
+            }
+
+            if (refreshConfirmedVoice && outcome.Plan.HasVoice)
+            {
+                await _processManager
+                    .RestartVoiceAsync(
+                        outcome.Plan.VoiceArguments,
+                        refreshCancellation.Token)
+                    .ConfigureAwait(false);
+            }
+
+            var targetState = ActiveTcpChannelsReachable()
+                ? AppState.Running
+                : AppState.PartialFailure;
+            if (_stateMachine.State != targetState
+                && _stateMachine.CanTransitionTo(targetState))
+            {
+                _stateMachine.TransitionTo(targetState);
+            }
+        }
+        finally
+        {
+            lock (_sessionSync)
+            {
+                _refreshingTcpServices.Remove(serviceId);
+            }
+
+            if (gateHeld)
+            {
+                _gate.Release();
+            }
+
+            lock (_startSync)
+            {
+                if (ReferenceEquals(
+                        _activeStartCancellation,
+                        refreshCancellation))
+                {
+                    _activeStartCancellation = null;
+                }
+            }
         }
     }
 
@@ -561,13 +707,7 @@ public sealed class ServiceEngine
                 }
 
                 var network = _networkInspector.Inspect();
-                SetExternalTunnelDetected(network.VpnLikely);
-                if (network.VpnLikely)
-                {
-                    failures.Clear();
-                    SetInternetUnavailable(false);
-                    continue;
-                }
+                SetExternalTunnelDetected(network.VpnLikely, network.DetectionReason);
 
                 var internetAvailable = await _internetProbe
                     .CheckAsync(cancellationToken)
@@ -587,11 +727,7 @@ public sealed class ServiceEngine
                         .Delay(NetworkRecoveryDelay, cancellationToken)
                         .ConfigureAwait(false);
                     network = _networkInspector.Inspect();
-                    SetExternalTunnelDetected(network.VpnLikely);
-                    if (network.VpnLikely)
-                    {
-                        continue;
-                    }
+                    SetExternalTunnelDetected(network.VpnLikely, network.DetectionReason);
 
                     if (!await _internetProbe
                             .CheckAsync(cancellationToken)
@@ -613,10 +749,21 @@ public sealed class ServiceEngine
                     .Distinct()
                     .ToArray();
                 BeginTcpReachabilityCheck(services);
-                var results = await _presetSearch
-                    .ProbeTcpAsync(services, cancellationToken)
+                IReadOnlyDictionary<ServiceId, bool> results;
+                await _tcpProbeGate
+                    .WaitAsync(cancellationToken)
                     .ConfigureAwait(false);
-                UpdateTcpReachability(results);
+                try
+                {
+                    results = await _presetSearch
+                        .ProbeTcpAsync(services, cancellationToken)
+                        .ConfigureAwait(false);
+                    UpdateTcpReachability(results);
+                }
+                finally
+                {
+                    _tcpProbeGate.Release();
+                }
                 foreach (var result in results)
                 {
                     failures[result.Key] = result.Value
@@ -640,7 +787,15 @@ public sealed class ServiceEngine
 
                 if (results.Any(result => !result.Value && failures[result.Key] >= 2))
                 {
-                    await RepairRuntimeAsync(options, network, cancellationToken)
+                    await RepairRuntimeAsync(
+                            options,
+                            network,
+                            results
+                                .Where(result =>
+                                    !result.Value && failures[result.Key] >= 2)
+                                .Select(result => result.Key)
+                                .ToArray(),
+                            cancellationToken)
                         .ConfigureAwait(false);
                     failures.Clear();
                 }
@@ -683,9 +838,11 @@ public sealed class ServiceEngine
                     }
                 }
 
-                var detected = _networkInspector.Inspect().VpnLikely;
-                var changed = SetExternalTunnelDetected(detected);
-                if (changed && !detected)
+                var network = _networkInspector.Inspect();
+                var changed = SetExternalTunnelDetected(
+                    network.VpnLikely,
+                    network.DetectionReason);
+                if (changed && !network.VpnLikely)
                 {
                     OnNetworkAddressChanged(this, EventArgs.Empty);
                 }
@@ -711,7 +868,7 @@ public sealed class ServiceEngine
         }
     }
 
-    private bool SetExternalTunnelDetected(bool detected)
+    private bool SetExternalTunnelDetected(bool detected, string? reason = null)
     {
         var changed = false;
         lock (_sessionSync)
@@ -730,7 +887,8 @@ public sealed class ServiceEngine
                     ? "network.external-tunnel.detected"
                     : "network.external-tunnel.cleared",
                 detected
-                    ? "VPN or system proxy detected."
+                    ? "VPN or system proxy detected"
+                      + (string.IsNullOrWhiteSpace(reason) ? "." : $": {reason}.")
                     : "VPN or system proxy is no longer detected.");
         }
 
@@ -793,6 +951,7 @@ public sealed class ServiceEngine
     private async Task RepairRuntimeAsync(
         KrotStartOptions options,
         NetworkEnvironmentSummary network,
+        IReadOnlyCollection<ServiceId> failedServices,
         CancellationToken cancellationToken)
     {
         await _gate.WaitAsync(cancellationToken).ConfigureAwait(false);
@@ -806,31 +965,46 @@ public sealed class ServiceEngine
             _log.Info(
                 "runtime.repair.starting",
                 "A service channel failed twice while the internet remained available; selecting a working preset.");
-            await _processManager
-                .StopAllOwnedAsync(cancellationToken)
-                .ConfigureAwait(false);
-            var outcome = await _presetSearch
-                .StartMainAsync(
-                    options,
-                    network.FingerprintSha256,
-                    allowSearch: !network.VpnLikely,
-                    stageChanged: null,
-                    cancellationToken)
-                .ConfigureAwait(false);
-            SetActiveSession(
-                options,
-                network.FingerprintSha256,
-                outcome.Selection,
-                outcome.TcpReachability,
-                network.VpnLikely);
-            if (outcome.Plan.HasVoice)
+            foreach (var serviceId in failedServices)
             {
-                await _processManager
-                    .StartVoiceAsync(outcome.Plan.VoiceArguments, cancellationToken)
+                PresetSelection selection;
+                lock (_sessionSync)
+                {
+                    selection = _activeSelection?.Clone()
+                        ?? new PresetSelection();
+                    _refreshingTcpServices.Add(serviceId);
+                }
+
+                PresetSearchOutcome outcome;
+                await _tcpProbeGate
+                    .WaitAsync(cancellationToken)
                     .ConfigureAwait(false);
+                try
+                {
+                    outcome = await _presetSearch
+                        .RefreshServiceAsync(
+                            options,
+                            network.FingerprintSha256,
+                            selection,
+                            serviceId,
+                            allowSearch: true,
+                            cancellationToken)
+                        .ConfigureAwait(false);
+                }
+                finally
+                {
+                    _tcpProbeGate.Release();
+                }
+                lock (_sessionSync)
+                {
+                    _activeSelection = outcome.Selection.Clone();
+                    _activeNetworkFingerprint = network.FingerprintSha256;
+                    _tcpReachability[serviceId] = outcome.AllTcpReachable;
+                    _refreshingTcpServices.Remove(serviceId);
+                }
             }
 
-            var targetState = outcome.AllTcpReachable
+            var targetState = ActiveTcpChannelsReachable()
                 ? AppState.Running
                 : AppState.PartialFailure;
             if (_stateMachine.CanTransitionTo(targetState))
@@ -840,7 +1014,7 @@ public sealed class ServiceEngine
 
             _log.Info(
                 "runtime.repair.complete",
-                $"Runtime repaired. presets={string.Join(",", outcome.Plan.PresetIds)}.");
+                "Problematic service channels were reselected independently.");
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
@@ -860,6 +1034,14 @@ public sealed class ServiceEngine
         }
         finally
         {
+            lock (_sessionSync)
+            {
+                foreach (var serviceId in failedServices)
+                {
+                    _refreshingTcpServices.Remove(serviceId);
+                }
+            }
+
             _gate.Release();
         }
     }
@@ -878,6 +1060,7 @@ public sealed class ServiceEngine
             _activeSelection = selection?.Clone();
             _tcpReachability.Clear();
             _tcpCheckingUntilUtc.Clear();
+            _refreshingTcpServices.Clear();
             if (tcpReachability != null)
             {
                 foreach (var item in tcpReachability)
@@ -904,6 +1087,7 @@ public sealed class ServiceEngine
             _activeSelection = null;
             _tcpReachability.Clear();
             _tcpCheckingUntilUtc.Clear();
+            _refreshingTcpServices.Clear();
             _confirmedUdpChannels.Clear();
             _activeUdpChannels.Clear();
             _failedUdpChannels.Clear();
@@ -1008,6 +1192,11 @@ public sealed class ServiceEngine
                 : ChannelState.WaitingForActivity;
         }
 
+        if (_refreshingTcpServices.Contains(serviceId))
+        {
+            return ChannelState.Searching;
+        }
+
         if (_tcpCheckingUntilUtc.TryGetValue(serviceId, out var checkingUntilUtc))
         {
             if (checkingUntilUtc > DateTime.UtcNow)
@@ -1056,6 +1245,25 @@ public sealed class ServiceEngine
             StringComparison.Ordinal)
             ? ChannelState.WorkingDirect
             : ChannelState.WorkingPreset;
+    }
+
+    private bool ActiveTcpChannelsReachable()
+    {
+        lock (_sessionSync)
+        {
+            if (_activeOptions == null)
+            {
+                return false;
+            }
+
+            return _activeOptions.Services
+                .Where(serviceId =>
+                    serviceId is ServiceId.Discord or ServiceId.YouTube)
+                .Distinct()
+                .All(serviceId =>
+                    _tcpReachability.TryGetValue(serviceId, out var reachable)
+                    && reachable == true);
+        }
     }
 
     private string ChannelStrategy(ServiceId serviceId, string channelId)

@@ -17,5 +17,9 @@ public interface IServiceClient
 
     Task SetDetailedLogsAsync(bool enabled, CancellationToken cancellationToken);
 
+    Task RefreshServiceAsync(
+        ServiceId serviceId,
+        CancellationToken cancellationToken);
+
     Task ShutdownAsync(CancellationToken cancellationToken);
 }

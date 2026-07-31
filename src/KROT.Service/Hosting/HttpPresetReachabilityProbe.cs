@@ -21,7 +21,7 @@ public sealed class HttpPresetReachabilityProbe : IPresetReachabilityProbe
         {
             [ServiceId.Discord] = new[]
             {
-                Required("api", "https://discord.com/api/v10/gateway"),
+                Optional("api", "https://discord.com/api/v10/gateway"),
                 Required("gateway", "https://gateway.discord.gg/"),
                 Required("media", "https://cdn.discordapp.com/")
             },

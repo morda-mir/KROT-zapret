@@ -27,4 +27,40 @@ public sealed class NetworkEnvironmentInspectorTests
             "Intel Ethernet Controller",
             NetworkInterfaceType.Ethernet));
     }
+
+    [Fact]
+    public void VpnMarkerWithoutDefaultRoute_IsNotActiveVpn()
+    {
+        Assert.False(NetworkEnvironmentInspector.IsActiveVpn(
+            "happ-tun",
+            "sing-tun Tunnel",
+            NetworkInterfaceType.Unknown,
+            hasDefaultGateway: false));
+    }
+
+    [Fact]
+    public void RoutedVpnAdapter_IsActiveVpn()
+    {
+        Assert.True(NetworkEnvironmentInspector.IsActiveVpn(
+            "happ-tun",
+            "sing-tun Tunnel",
+            NetworkInterfaceType.Unknown,
+            hasDefaultGateway: true));
+    }
+
+    [Fact]
+    public void RoutedTunWithoutSystemProxy_DoesNotTriggerWarning()
+    {
+        Assert.False(
+            NetworkEnvironmentInspector.ShouldReportExternalTunnel(
+                systemProxyDetected: false));
+    }
+
+    [Fact]
+    public void ExplicitSystemProxy_TriggersWarning()
+    {
+        Assert.True(
+            NetworkEnvironmentInspector.ShouldReportExternalTunnel(
+                systemProxyDetected: true));
+    }
 }

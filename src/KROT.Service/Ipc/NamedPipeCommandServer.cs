@@ -24,8 +24,6 @@ public sealed class NamedPipeCommandServer
     private readonly ServiceEngine _engine;
     private readonly ILogService _log;
     private readonly string? _pipeNameOverride;
-    private readonly object _clientTasksSync = new();
-    private readonly HashSet<Task> _clientTasks = new();
     private long _lastRequestUtcTicks = DateTime.UtcNow.Ticks;
     private int _activeClientCount;
     private readonly JsonSerializerSettings _serializerSettings = new()
@@ -53,52 +51,72 @@ public sealed class NamedPipeCommandServer
 
     public async Task RunAsync(CancellationToken cancellationToken)
     {
-        try
-        {
-            while (!cancellationToken.IsCancellationRequested)
-            {
-                NamedPipeServerStream? pipe = null;
-                var userSid = InteractiveUserSidProvider.TryGetActiveUserSid();
-                if (userSid == null)
-                {
-                    await Task.Delay(1000, cancellationToken).ConfigureAwait(false);
-                    continue;
-                }
+        var listeners = Enumerable
+            .Range(0, MaxPipeInstances)
+            .Select(_ => RunListenerAsync(cancellationToken))
+            .ToArray();
+        await Task.WhenAll(listeners).ConfigureAwait(false);
+    }
 
+    private async Task RunListenerAsync(CancellationToken cancellationToken)
+    {
+        while (!cancellationToken.IsCancellationRequested)
+        {
+            NamedPipeServerStream? pipe = null;
+            var userSid = InteractiveUserSidProvider.TryGetActiveUserSid();
+            if (userSid == null)
+            {
                 try
                 {
-                    pipe = CreatePipe(userSid, _pipeNameOverride);
-                    using var registration = cancellationToken.Register(pipe.Dispose);
-                    await Task.Factory.FromAsync(
-                        (callback, state) => pipe.BeginWaitForConnection(callback, state),
-                        pipe.EndWaitForConnection,
-                        null).ConfigureAwait(false);
-                    var connectedPipe = pipe;
-                    pipe = null;
-                    TrackClient(HandleClientSafelyAsync(connectedPipe, cancellationToken));
-                }
-                catch (ObjectDisposedException) when (cancellationToken.IsCancellationRequested)
-                {
-                    return;
+                    await Task.Delay(1000, cancellationToken).ConfigureAwait(false);
                 }
                 catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
                 {
                     return;
                 }
-                catch (Exception ex)
+
+                continue;
+            }
+
+            try
+            {
+                pipe = CreatePipe(userSid, _pipeNameOverride);
+                _log.Detail("pipe.listener.ready", "Named Pipe listener is ready.");
+                using var registration = cancellationToken.Register(pipe.Dispose);
+                await Task.Factory.FromAsync(
+                    (callback, state) => pipe.BeginWaitForConnection(callback, state),
+                    pipe.EndWaitForConnection,
+                    null).ConfigureAwait(false);
+                var connectedPipe = pipe;
+                pipe = null;
+                _log.Detail("pipe.client.connected", "Named Pipe client connected.");
+                await HandleClientSafelyAsync(connectedPipe, cancellationToken)
+                    .ConfigureAwait(false);
+            }
+            catch (ObjectDisposedException) when (cancellationToken.IsCancellationRequested)
+            {
+                return;
+            }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+            {
+                return;
+            }
+            catch (Exception ex)
+            {
+                _log.Error("pipe.failure", "Named Pipe request failed.", ex);
+                try
                 {
-                    _log.Error("pipe.failure", "Named Pipe request failed.", ex);
                     await Task.Delay(250, cancellationToken).ConfigureAwait(false);
                 }
-                finally
+                catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
                 {
-                    pipe?.Dispose();
+                    return;
                 }
             }
-        }
-        finally
-        {
-            await WaitForClientsAsync().ConfigureAwait(false);
+            finally
+            {
+                pipe?.Dispose();
+            }
         }
     }
 
@@ -162,6 +180,7 @@ public sealed class NamedPipeCommandServer
                     "status"
                     or "start"
                     or "stop"
+                    or "refresh-service"
                     or "set-detailed-logs"
                     or "shutdown"))
             {
@@ -189,6 +208,20 @@ public sealed class NamedPipeCommandServer
                     break;
                 case "stop":
                     await _engine.StopAsync(cancellationToken).ConfigureAwait(false);
+                    break;
+                case "refresh-service":
+                    if (request.ServiceId is not (
+                            ServiceId.Discord or ServiceId.YouTube))
+                    {
+                        throw new InvalidOperationException(
+                            "A supported service must be specified.");
+                    }
+
+                    await _engine
+                        .RefreshServiceAsync(
+                            request.ServiceId.Value,
+                            cancellationToken)
+                        .ConfigureAwait(false);
                     break;
                 case "set-detailed-logs":
                     if (request.DetailedLogs == null
@@ -236,40 +269,6 @@ public sealed class NamedPipeCommandServer
         }
     }
 
-    private void TrackClient(Task task)
-    {
-        lock (_clientTasksSync)
-        {
-            _clientTasks.Add(task);
-        }
-
-        _ = task.ContinueWith(
-            completedTask =>
-            {
-                lock (_clientTasksSync)
-                {
-                    _clientTasks.Remove(completedTask);
-                }
-            },
-            CancellationToken.None,
-            TaskContinuationOptions.ExecuteSynchronously,
-            TaskScheduler.Default);
-    }
-
-    private async Task WaitForClientsAsync()
-    {
-        Task[] clients;
-        lock (_clientTasksSync)
-        {
-            clients = _clientTasks.ToArray();
-        }
-
-        if (clients.Length > 0)
-        {
-            await Task.WhenAll(clients).ConfigureAwait(false);
-        }
-    }
-
     private static KrotStartOptions NormalizeStartOptions(KrotStartOptions options)
     {
         options.Services = (options.Services ?? new List<ServiceId>())
@@ -292,9 +291,18 @@ public sealed class NamedPipeCommandServer
     {
         var security = new PipeSecurity();
         security.SetAccessRuleProtection(isProtected: true, preserveInheritance: false);
+        var interactiveRights = PipeAccessRights.ReadWrite;
+        var serverSid = WindowsIdentity.GetCurrent().User;
+        if (serverSid != null && serverSid.Equals(userSid))
+        {
+            // Debug/test hosts run the server as the interactive user. That
+            // identity needs this right to create concurrent server instances.
+            interactiveRights |= PipeAccessRights.CreateNewInstance;
+        }
+
         security.AddAccessRule(new PipeAccessRule(
             userSid,
-            PipeAccessRights.ReadWrite,
+            interactiveRights,
             AccessControlType.Allow));
         security.AddAccessRule(new PipeAccessRule(
             new SecurityIdentifier(WellKnownSidType.BuiltinAdministratorsSid, null),
