@@ -44,16 +44,7 @@ public sealed class NetworkEnvironmentInspector
             "|",
             active.Select(NormalizeAdapter).OrderBy(value => value, StringComparer.Ordinal));
         var proxyDetected = IsSystemProxyConfigured();
-        var activeVpnAdapters = summaries
-            .Where(adapter => adapter.LikelyVpn)
-            .Select(adapter => $"{adapter.Name} ({adapter.Description})")
-            .ToArray();
         var reasons = new List<string>();
-        if (activeVpnAdapters.Length > 0)
-        {
-            reasons.Add($"routed VPN adapter(s): {string.Join(", ", activeVpnAdapters)}");
-        }
-
         if (proxyDetected)
         {
             reasons.Add("system proxy");
@@ -62,7 +53,11 @@ public sealed class NetworkEnvironmentInspector
         return new NetworkEnvironmentSummary
         {
             ActiveAdapterCount = active.Length,
-            VpnLikely = activeVpnAdapters.Length > 0 || proxyDetected,
+            // Some clients keep a routed TUN adapter alive even when their UI
+            // connection is disabled. Preserve adapter markers for diagnostics,
+            // but only report an actionable external tunnel when Windows has
+            // an explicit system proxy configured.
+            VpnLikely = ShouldReportExternalTunnel(proxyDetected),
             SystemProxyDetected = proxyDetected,
             FingerprintSha256 = Sha256(fingerprintSource),
             Adapters = summaries,
@@ -95,6 +90,9 @@ public sealed class NetworkEnvironmentInspector
         NetworkInterfaceType interfaceType,
         bool hasDefaultGateway) =>
         hasDefaultGateway && IsLikelyVpn(name, description, interfaceType);
+
+    public static bool ShouldReportExternalTunnel(bool systemProxyDetected) =>
+        systemProxyDetected;
 
     private AdapterSummary CreateSummary(NetworkInterface adapter)
     {

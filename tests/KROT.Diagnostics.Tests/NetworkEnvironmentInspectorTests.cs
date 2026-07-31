@@ -47,4 +47,20 @@ public sealed class NetworkEnvironmentInspectorTests
             NetworkInterfaceType.Unknown,
             hasDefaultGateway: true));
     }
+
+    [Fact]
+    public void RoutedTunWithoutSystemProxy_DoesNotTriggerWarning()
+    {
+        Assert.False(
+            NetworkEnvironmentInspector.ShouldReportExternalTunnel(
+                systemProxyDetected: false));
+    }
+
+    [Fact]
+    public void ExplicitSystemProxy_TriggersWarning()
+    {
+        Assert.True(
+            NetworkEnvironmentInspector.ShouldReportExternalTunnel(
+                systemProxyDetected: true));
+    }
 }

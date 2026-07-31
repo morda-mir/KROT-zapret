@@ -179,7 +179,7 @@ public sealed class ServiceEngine
                     .StartMainAsync(
                         options,
                         network.FingerprintSha256,
-                        allowSearch: !network.VpnLikely,
+                        allowSearch: true,
                         OnPresetSearchStageChanged,
                         startCancellation.Token)
                     .ConfigureAwait(false);
@@ -373,7 +373,7 @@ public sealed class ServiceEngine
                         network.FingerprintSha256,
                         selection,
                         serviceId,
-                        allowSearch: !network.VpnLikely,
+                        allowSearch: true,
                         refreshCancellation.Token)
                     .ConfigureAwait(false);
             }
@@ -708,12 +708,6 @@ public sealed class ServiceEngine
 
                 var network = _networkInspector.Inspect();
                 SetExternalTunnelDetected(network.VpnLikely, network.DetectionReason);
-                if (network.VpnLikely)
-                {
-                    failures.Clear();
-                    SetInternetUnavailable(false);
-                    continue;
-                }
 
                 var internetAvailable = await _internetProbe
                     .CheckAsync(cancellationToken)
@@ -734,10 +728,6 @@ public sealed class ServiceEngine
                         .ConfigureAwait(false);
                     network = _networkInspector.Inspect();
                     SetExternalTunnelDetected(network.VpnLikely, network.DetectionReason);
-                    if (network.VpnLikely)
-                    {
-                        continue;
-                    }
 
                     if (!await _internetProbe
                             .CheckAsync(cancellationToken)
@@ -997,7 +987,7 @@ public sealed class ServiceEngine
                             network.FingerprintSha256,
                             selection,
                             serviceId,
-                            allowSearch: !network.VpnLikely,
+                            allowSearch: true,
                             cancellationToken)
                         .ConfigureAwait(false);
                 }
