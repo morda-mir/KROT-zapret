@@ -49,10 +49,11 @@ public sealed class NetworkEnvironmentInspectorTests
     }
 
     [Fact]
-    public void RoutedTunWithoutSystemProxy_DoesNotTriggerWarning()
+    public void RoutedTunWithoutSystemProxy_TriggersInformation()
     {
-        Assert.False(
+        Assert.True(
             NetworkEnvironmentInspector.ShouldReportExternalTunnel(
+                routedVpnAdapterDetected: true,
                 systemProxyDetected: false));
     }
 
@@ -61,6 +62,16 @@ public sealed class NetworkEnvironmentInspectorTests
     {
         Assert.True(
             NetworkEnvironmentInspector.ShouldReportExternalTunnel(
+                routedVpnAdapterDetected: false,
                 systemProxyDetected: true));
+    }
+
+    [Fact]
+    public void NoRoutedTunOrSystemProxy_DoesNotTriggerInformation()
+    {
+        Assert.False(
+            NetworkEnvironmentInspector.ShouldReportExternalTunnel(
+                routedVpnAdapterDetected: false,
+                systemProxyDetected: false));
     }
 }
