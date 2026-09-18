@@ -68,7 +68,9 @@ public static class BuiltInStrategyCatalog
         Deep("voice-07-udplen-8"),
         Deep("voice-08-fake-r4-udplen2"),
         Deep("voice-09-discovery-blob-r6"),
-        Deep("voice-10-dtls-blob-r6")
+        Deep("voice-10-dtls-blob-r6"),
+        Deep("voice-11-ipfrag"),
+        Deep("voice-12-ipfrag-disorder")
     };
 
     public static bool IsTcp(string id) =>

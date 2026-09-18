@@ -77,11 +77,18 @@ public sealed class HttpPresetReachabilityProbe : IPresetReachabilityProbe
             ", ",
             results.Select(result =>
                 $"{result.Role}:{result.Host}={result.Outcome}"));
-        _log.Detail(
-            "preset.probe",
-            reachable
-                ? $"{serviceId} required endpoints reachable: {summary}."
-                : $"{serviceId} required endpoints unavailable: {summary}.");
+        if (reachable)
+        {
+            _log.Detail(
+                "preset.probe",
+                $"{serviceId} required endpoints reachable: {summary}.");
+        }
+        else
+        {
+            _log.Info(
+                "preset.probe.failed",
+                $"{serviceId} required endpoints unavailable: {summary}.");
+        }
         return reachable;
     }
 

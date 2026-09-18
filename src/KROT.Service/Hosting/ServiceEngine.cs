@@ -18,6 +18,7 @@ public sealed class ServiceEngine
     private static readonly TimeSpan HealthCheckInterval = TimeSpan.FromSeconds(90);
     private static readonly TimeSpan NetworkChangeSettleDelay = TimeSpan.FromSeconds(2);
     private static readonly TimeSpan NetworkRecoveryDelay = TimeSpan.FromSeconds(8);
+    private static readonly TimeSpan RepairConfirmationDelay = TimeSpan.FromSeconds(5);
     private static readonly TimeSpan ExternalTunnelCheckInterval =
         TimeSpan.FromSeconds(3);
     private static readonly TimeSpan TcpCheckIndicatorDuration =
@@ -338,7 +339,7 @@ public sealed class ServiceEngine
             gateHeld = true;
             KrotStartOptions options;
             PresetSelection selection;
-            bool refreshConfirmedVoice;
+            bool refreshVoice;
             lock (_sessionSync)
             {
                 if (_activeOptions == null
@@ -353,9 +354,13 @@ public sealed class ServiceEngine
 
                 options = CloneOptions(_activeOptions)!;
                 selection = _activeSelection.Clone();
-                refreshConfirmedVoice =
+                refreshVoice =
                     serviceId == ServiceId.Discord
-                    && _confirmedUdpChannels.Contains("discord_voice");
+                    && !options.SkipVoice
+                    && !string.Equals(
+                        selection.DiscordVoice,
+                        PresetSelection.Direct,
+                        StringComparison.Ordinal);
                 _refreshingTcpServices.Add(serviceId);
             }
 
@@ -387,7 +392,7 @@ public sealed class ServiceEngine
                 _activeSelection = outcome.Selection.Clone();
                 _activeNetworkFingerprint = network.FingerprintSha256;
                 _tcpReachability[serviceId] = outcome.AllTcpReachable;
-                if (refreshConfirmedVoice)
+                if (refreshVoice)
                 {
                     _confirmedUdpChannels.Remove("discord_voice");
                     _failedUdpChannels.Remove("discord_voice");
@@ -396,7 +401,7 @@ public sealed class ServiceEngine
                 }
             }
 
-            if (refreshConfirmedVoice && outcome.Plan.HasVoice)
+            if (refreshVoice && outcome.Plan.HasVoice)
             {
                 await _processManager
                     .RestartVoiceAsync(
@@ -496,12 +501,14 @@ public sealed class ServiceEngine
         {
             if (_activeOptions == null
                 || !_activeOptions.Services.Contains(ServiceId.Discord)
-                || _activeOptions.SkipVoice
-                || _confirmedUdpChannels.Contains(marker.Channel))
+                || _activeOptions.SkipVoice)
             {
                 return;
             }
 
+            // Every activity marker represents a new tracked UDP flow. A result
+            // from an earlier Discord call must not keep the new flow green.
+            _confirmedUdpChannels.Remove(marker.Channel);
             _activeUdpChannels.Add(marker.Channel);
             _failedUdpChannels.Remove(marker.Channel);
             generation = ++_nextUdpAttemptGeneration;
@@ -785,19 +792,70 @@ public sealed class ServiceEngine
                         .ConfigureAwait(false);
                 }
 
-                if (results.Any(result => !result.Value && failures[result.Key] >= 2))
+                var repairCandidates = results
+                    .Where(result =>
+                        !result.Value && failures[result.Key] >= 2)
+                    .Select(result => result.Key)
+                    .ToArray();
+                if (repairCandidates.Length > 0)
                 {
-                    await RepairRuntimeAsync(
-                            options,
-                            network,
-                            results
-                                .Where(result =>
-                                    !result.Value && failures[result.Key] >= 2)
-                                .Select(result => result.Key)
-                                .ToArray(),
-                            cancellationToken)
+                    _log.Info(
+                        "runtime.repair.confirming",
+                        $"Confirming failed service channels before restart: {string.Join(",", repairCandidates)}.");
+                    await Task
+                        .Delay(RepairConfirmationDelay, cancellationToken)
                         .ConfigureAwait(false);
-                    failures.Clear();
+                    BeginTcpReachabilityCheck(repairCandidates);
+                    IReadOnlyDictionary<ServiceId, bool> confirmation;
+                    await _tcpProbeGate
+                        .WaitAsync(cancellationToken)
+                        .ConfigureAwait(false);
+                    try
+                    {
+                        confirmation = await _presetSearch
+                            .ProbeTcpAsync(repairCandidates, cancellationToken)
+                            .ConfigureAwait(false);
+                        UpdateTcpReachability(confirmation);
+                    }
+                    finally
+                    {
+                        _tcpProbeGate.Release();
+                    }
+
+                    var confirmedFailures = confirmation
+                        .Where(result => !result.Value)
+                        .Select(result => result.Key)
+                        .ToArray();
+                    foreach (var result in confirmation)
+                    {
+                        if (result.Value)
+                        {
+                            failures[result.Key] = 0;
+                        }
+                    }
+
+                    if (confirmedFailures.Length > 0)
+                    {
+                        await RepairRuntimeAsync(
+                                options,
+                                network,
+                                confirmedFailures,
+                                cancellationToken)
+                            .ConfigureAwait(false);
+                        failures.Clear();
+                    }
+                    else
+                    {
+                        _log.Info(
+                            "runtime.repair.skipped",
+                            "Service channels recovered during confirmation; runtime restart was skipped.");
+                        if (ActiveTcpChannelsReachable()
+                            && _stateMachine.State == AppState.PartialFailure
+                            && _stateMachine.CanTransitionTo(AppState.Running))
+                        {
+                            _stateMachine.TransitionTo(AppState.Running);
+                        }
+                    }
                 }
                 else if (results.All(result => result.Value)
                          && _stateMachine.State == AppState.PartialFailure

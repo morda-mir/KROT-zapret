@@ -1,6 +1,6 @@
 #define MyAppName "KROT zapret"
 #ifndef MyAppVersion
-  #define MyAppVersion "1.0"
+  #define MyAppVersion "1.1"
 #endif
 #ifndef MyOutputDir
   #define MyOutputDir "Output"
@@ -54,6 +54,7 @@ Source: "..\THIRD_PARTY_NOTICES.txt"; DestDir: "{app}"; Flags: ignoreversion
 [InstallDelete]
 Type: filesandordirs; Name: "{app}\tools"
 Type: filesandordirs; Name: "{app}\service\runtime\zapret2-v1.0.2"
+Type: filesandordirs; Name: "{app}\service\runtime\zapret2-v1.0.3"
 
 [Icons]
 Name: "{group}\KROT zapret"; Filename: "{app}\{#MyAppExeName}"; WorkingDir: "{app}"

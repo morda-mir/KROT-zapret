@@ -340,7 +340,7 @@ public sealed class BuiltInPresetCatalog
                 result,
                 AdaptiveVoiceProfile(selection.DiscordVoice),
                 ref firstProfile);
-            presetIds.Add("discord-voice:adaptive-10");
+            presetIds.Add("discord-voice:adaptive-12");
         }
 
         return result;
@@ -458,6 +458,16 @@ public sealed class BuiltInPresetCatalog
                     "--lua-desync=fake:blob=voice_dtls:repeats=6"
                     + $":payload=stun,discord_ip_discovery,dtls_client_hello"
                     + $":strategy={strategyNumber}");
+                break;
+            case "voice-11-ipfrag":
+                destination.Add(
+                    $"--lua-desync=send:ipfrag:ipfrag_pos_udp=8{tag}");
+                destination.Add($"--lua-desync=drop{tag}");
+                break;
+            case "voice-12-ipfrag-disorder":
+                destination.Add(
+                    $"--lua-desync=send:ipfrag:ipfrag_disorder:ipfrag_pos_udp=8{tag}");
+                destination.Add($"--lua-desync=drop{tag}");
                 break;
             default:
                 throw new ArgumentOutOfRangeException(

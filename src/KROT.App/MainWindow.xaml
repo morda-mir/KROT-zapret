@@ -251,6 +251,8 @@
                           Background="Transparent"
                           BorderThickness="0"
                           Command="{Binding RefreshCommand}"
+                          ToolTip="{Binding RefreshTooltip}"
+                          AutomationProperties.Name="{Binding RefreshTooltip}"
                           HorizontalAlignment="Center"
                           VerticalAlignment="Center"
                           FocusVisualStyle="{x:Null}">

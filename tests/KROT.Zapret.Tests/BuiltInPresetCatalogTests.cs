@@ -20,7 +20,7 @@ public sealed class BuiltInPresetCatalogTests
     {
         Assert.Equal(19, BuiltInStrategyCatalog.Tcp.Count);
         Assert.Equal(8, BuiltInStrategyCatalog.Quic.Count);
-        Assert.Equal(10, BuiltInStrategyCatalog.Voice.Count);
+        Assert.Equal(12, BuiltInStrategyCatalog.Voice.Count);
         Assert.Equal(5, BuiltInStrategyCatalog.Tcp.Count(item => item.Fast));
         Assert.Equal(3, BuiltInStrategyCatalog.Quic.Count(item => item.Fast));
         Assert.Equal(4, BuiltInStrategyCatalog.Voice.Count(item => item.Fast));
@@ -120,7 +120,7 @@ public sealed class BuiltInPresetCatalogTests
         Assert.Contains("--filter-l7=discord,stun", plan.VoiceArguments);
         Assert.Contains("--in-range=a", plan.VoiceArguments);
         Assert.DoesNotContain("--filter-udp=19294-19344,50000-50099", plan.VoiceArguments);
-        for (var strategy = 1; strategy <= 10; strategy++)
+        for (var strategy = 1; strategy <= 12; strategy++)
         {
             Assert.Contains(
                 plan.VoiceArguments,
@@ -129,7 +129,13 @@ public sealed class BuiltInPresetCatalogTests
         Assert.Contains(
             $"discord-tcp:{BuiltInStrategyCatalog.DefaultTcpId}",
             plan.PresetIds);
-        Assert.Contains("discord-voice:adaptive-10", plan.PresetIds);
+        Assert.Contains("discord-voice:adaptive-12", plan.PresetIds);
+        Assert.Contains(
+            "--lua-desync=send:ipfrag:ipfrag_pos_udp=8:payload=stun,discord_ip_discovery:strategy=11",
+            plan.VoiceArguments);
+        Assert.Contains(
+            "--lua-desync=send:ipfrag:ipfrag_disorder:ipfrag_pos_udp=8:payload=stun,discord_ip_discovery:strategy=12",
+            plan.VoiceArguments);
     }
 
     [Fact]
