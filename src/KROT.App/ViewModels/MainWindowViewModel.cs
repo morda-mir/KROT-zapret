@@ -762,6 +762,11 @@ public sealed class MainWindowViewModel : ObservableObject, IDisposable
     {
         foreach (var service in Services)
         {
+            service.RefreshTooltip = string.Format(
+                _localization.Get("Action.RecheckService"),
+                _localization.Get(service.Id == ServiceId.Discord
+                    ? "Service.Discord"
+                    : "Service.YouTube"));
             foreach (var channel in service.Channels)
             {
                 RefreshChannelTooltip(channel);

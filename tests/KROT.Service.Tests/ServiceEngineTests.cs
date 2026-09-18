@@ -113,6 +113,12 @@ public sealed class ServiceEngineTests
             "KROT_UDP_WINNER|discord_voice|voice-01-fake-r2");
         Assert.Equal(ChannelState.WorkingPreset, VoiceState(engine));
 
+        processManager.Emit("KROT_UDP_ACTIVITY|discord_voice");
+        Assert.Equal(ChannelState.Testing, VoiceState(engine));
+        processManager.Emit(
+            "KROT_UDP_WINNER|discord_voice|voice-01-fake-r2");
+        Assert.Equal(ChannelState.WorkingPreset, VoiceState(engine));
+
         await engine.StopAsync(CancellationToken.None);
         await engine.StartAsync(Options(detailedLogs: true), CancellationToken.None);
         processManager.Emit("KROT_UDP_ACTIVITY|discord_voice");
@@ -121,6 +127,10 @@ public sealed class ServiceEngineTests
         await Task.Delay(TimeSpan.FromMilliseconds(150));
         Assert.Equal(ChannelState.Failed, VoiceState(engine));
         Assert.Contains(log.InfoEvents, item => item == "preset.udp.failed");
+
+        await engine.RefreshServiceAsync(ServiceId.Discord, CancellationToken.None);
+        Assert.Equal(1, processManager.RestartVoiceCount);
+        Assert.Equal(ChannelState.WaitingForActivity, VoiceState(engine));
 
         processManager.Emit("KROT_UDP_ACTIVITY|discord_voice");
         Assert.Equal(ChannelState.Testing, VoiceState(engine));
@@ -317,6 +327,8 @@ public sealed class ServiceEngineTests
 
         public event EventHandler<RuntimeOutputEvent>? RuntimeOutput;
 
+        public int RestartVoiceCount { get; private set; }
+
         public IReadOnlyCollection<RuntimeProcessRecord> OwnedProcesses =>
             _owned.AsReadOnly();
 
@@ -346,8 +358,11 @@ public sealed class ServiceEngineTests
 
         public Task RestartVoiceAsync(
             IReadOnlyList<string> arguments,
-            CancellationToken cancellationToken) =>
-            Task.CompletedTask;
+            CancellationToken cancellationToken)
+        {
+            RestartVoiceCount++;
+            return Task.CompletedTask;
+        }
 
         public Task StopAllOwnedAsync(CancellationToken cancellationToken)
         {

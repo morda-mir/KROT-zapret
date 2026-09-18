@@ -9,7 +9,8 @@ namespace KROT.Service.Hosting;
 
 public sealed class KrotWindowsService : ServiceBase
 {
-    private static readonly TimeSpan ClientIdleTimeout = TimeSpan.FromSeconds(15);
+    private static readonly TimeSpan ClientIdleTimeout = TimeSpan.FromSeconds(45);
+    private static readonly TimeSpan ClientIdleGracePeriod = TimeSpan.FromSeconds(15);
     private readonly ServiceEngine _engine;
     private readonly ILogService _log;
     private CancellationTokenSource? _cancellation;
@@ -86,6 +87,7 @@ public sealed class KrotWindowsService : ServiceBase
         NamedPipeCommandServer server,
         CancellationToken cancellationToken)
     {
+        DateTime? idleObservedUtc = null;
         try
         {
             while (!cancellationToken.IsCancellationRequested)
@@ -96,12 +98,27 @@ public sealed class KrotWindowsService : ServiceBase
                 if (server.HasActiveClients
                     || DateTime.UtcNow - server.LastRequestUtc < ClientIdleTimeout)
                 {
+                    idleObservedUtc = null;
+                    continue;
+                }
+
+                if (!idleObservedUtc.HasValue)
+                {
+                    idleObservedUtc = DateTime.UtcNow;
+                    _log.Detail(
+                        "service.client.timeout.grace",
+                        "GUI heartbeat is late; waiting for a recovery grace period.");
+                    continue;
+                }
+
+                if (DateTime.UtcNow - idleObservedUtc.Value < ClientIdleGracePeriod)
+                {
                     continue;
                 }
 
                 _log.Info(
                     "service.client.timeout",
-                    "No GUI heartbeat was received; stopping the runtime service.");
+                    "No GUI heartbeat was received after the recovery grace period; stopping the runtime service.");
                 _ = Task.Run(RequestStopSafely);
                 return;
             }

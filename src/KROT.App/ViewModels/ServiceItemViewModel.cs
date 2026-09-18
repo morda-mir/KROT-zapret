@@ -12,6 +12,7 @@ public sealed class ServiceItemViewModel : ObservableObject
 {
     private bool _isSelected;
     private bool _canEdit = true;
+    private string _refreshTooltip = string.Empty;
 
     public ServiceItemViewModel(
         ServiceId id,
@@ -46,6 +47,12 @@ public sealed class ServiceItemViewModel : ObservableObject
     public IAsyncRelayCommand RefreshCommand { get; }
 
     public bool CanRefresh { get; private set; }
+
+    public string RefreshTooltip
+    {
+        get => _refreshTooltip;
+        set => SetProperty(ref _refreshTooltip, value);
+    }
 
     public bool IsSelected
     {
