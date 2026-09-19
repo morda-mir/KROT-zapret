@@ -399,7 +399,7 @@ public sealed class BuiltInPresetCatalog
         {
             "--filter-l7=discord,stun",
             "--in-range=a",
-            "--lua-desync=krot_circular:key=discord_voice:channel=discord_voice"
+            "--lua-desync=krot_circular:key=discord_voice:channel=discord_voice:activity_out=6"
             + $":ids={string.Join(",", ordered.Select(item => item.Id))}"
             + ":fails=1:time=300:udp_out=6:udp_in=0"
         };

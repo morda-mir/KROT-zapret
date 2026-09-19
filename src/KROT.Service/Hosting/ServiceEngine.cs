@@ -25,6 +25,8 @@ public sealed class ServiceEngine
         TimeSpan.FromSeconds(4);
     private static readonly TimeSpan DefaultUdpConfirmationTimeout =
         TimeSpan.FromSeconds(15);
+    private static readonly TimeSpan RecentUdpConfirmationGrace =
+        TimeSpan.FromSeconds(5);
     private readonly IZapretProcessManager _processManager;
     private readonly BuiltInPresetCatalog _presetCatalog;
     private readonly AdaptivePresetSearchEngine _presetSearch;
@@ -33,6 +35,7 @@ public sealed class ServiceEngine
     private readonly ILogService _log;
     private readonly bool _isFakeRuntime;
     private readonly TimeSpan _udpConfirmationTimeout;
+    private readonly TimeSpan _recentUdpConfirmationGrace;
     private readonly SemaphoreSlim _gate = new(1, 1);
     private readonly SemaphoreSlim _tcpProbeGate = new(1, 1);
     private readonly SemaphoreSlim _healthSignal = new(0, 1);
@@ -58,6 +61,8 @@ public sealed class ServiceEngine
         new(StringComparer.Ordinal);
     private readonly Dictionary<string, long> _udpAttemptGenerations =
         new(StringComparer.Ordinal);
+    private readonly Dictionary<string, DateTime> _lastUdpConfirmationUtc =
+        new(StringComparer.Ordinal);
     private long _nextUdpAttemptGeneration;
     private bool _internetUnavailable;
     private bool _externalTunnelDetected;
@@ -70,7 +75,8 @@ public sealed class ServiceEngine
         IInternetAvailabilityProbe internetProbe,
         ILogService log,
         bool isFakeRuntime,
-        TimeSpan? udpConfirmationTimeout = null)
+        TimeSpan? udpConfirmationTimeout = null,
+        TimeSpan? recentUdpConfirmationGrace = null)
     {
         _processManager = processManager;
         _presetCatalog = presetCatalog;
@@ -81,11 +87,20 @@ public sealed class ServiceEngine
         _isFakeRuntime = isFakeRuntime;
         _udpConfirmationTimeout =
             udpConfirmationTimeout ?? DefaultUdpConfirmationTimeout;
+        _recentUdpConfirmationGrace =
+            recentUdpConfirmationGrace ?? RecentUdpConfirmationGrace;
         if (_udpConfirmationTimeout <= TimeSpan.Zero)
         {
             throw new ArgumentOutOfRangeException(
                 nameof(udpConfirmationTimeout),
                 "UDP confirmation timeout must be positive.");
+        }
+
+        if (_recentUdpConfirmationGrace < TimeSpan.Zero)
+        {
+            throw new ArgumentOutOfRangeException(
+                nameof(recentUdpConfirmationGrace),
+                "Recent UDP confirmation grace must not be negative.");
         }
 
         if (_processManager is IRuntimeOutputSource outputSource)
@@ -398,6 +413,7 @@ public sealed class ServiceEngine
                     _failedUdpChannels.Remove("discord_voice");
                     _activeUdpChannels.Remove("discord_voice");
                     _udpAttemptGenerations.Remove("discord_voice");
+                    _lastUdpConfirmationUtc.Remove("discord_voice");
                 }
             }
 
@@ -497,12 +513,27 @@ public sealed class ServiceEngine
         }
 
         long generation;
+        var now = DateTime.UtcNow;
         lock (_sessionSync)
         {
             if (_activeOptions == null
                 || !_activeOptions.Services.Contains(ServiceId.Discord)
                 || _activeOptions.SkipVoice)
             {
+                return;
+            }
+
+            // Discord opens several UDP flows for one voice session. A
+            // parallel unanswered probe must not overwrite a result that was
+            // just confirmed by another flow from the same session.
+            if (_lastUdpConfirmationUtc.TryGetValue(
+                    marker.Channel,
+                    out var confirmedUtc)
+                && now - confirmedUtc < _recentUdpConfirmationGrace)
+            {
+                _log.Detail(
+                    "preset.udp.activity.ignored",
+                    "Ignored a parallel Discord UDP probe after a recent voice confirmation.");
                 return;
             }
 
@@ -564,6 +595,7 @@ public sealed class ServiceEngine
                 }
 
                 _confirmedUdpChannels.Add(marker.Channel);
+                _lastUdpConfirmationUtc[marker.Channel] = DateTime.UtcNow;
                 _activeUdpChannels.Remove(marker.Channel);
                 _failedUdpChannels.Remove(marker.Channel);
                 _udpAttemptGenerations.Remove(marker.Channel);
@@ -1131,6 +1163,7 @@ public sealed class ServiceEngine
             _activeUdpChannels.Clear();
             _failedUdpChannels.Clear();
             _udpAttemptGenerations.Clear();
+            _lastUdpConfirmationUtc.Clear();
             _internetUnavailable = false;
             _externalTunnelDetected = externalTunnelDetected;
         }
@@ -1150,6 +1183,7 @@ public sealed class ServiceEngine
             _activeUdpChannels.Clear();
             _failedUdpChannels.Clear();
             _udpAttemptGenerations.Clear();
+            _lastUdpConfirmationUtc.Clear();
             _internetUnavailable = false;
             _externalTunnelDetected = false;
         }

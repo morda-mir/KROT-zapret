@@ -175,8 +175,8 @@
     {
       "runtimeId": "zapret2-v1.0.5.2",
       "relativePath": "zapret2-v1.0.5.2/lua/krot-auto.lua",
-      "version": "krot-2",
-      "sha256": "b17b668dbf51c357d36eed902cee33528262d714f78a49e8fbf3471e08b6731c",
+      "version": "krot-3",
+      "sha256": "98f74645cbbd073356a56e769def289444358827d8e73f5b6552b782fec2683d",
       "sourceUrl": "https://github.com/morda-mir/KROT-zapret"
     },
     {

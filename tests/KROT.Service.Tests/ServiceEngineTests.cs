@@ -101,7 +101,8 @@ public sealed class ServiceEngineTests
         var engine = CreateEngine(
             processManager,
             log,
-            TimeSpan.FromMilliseconds(40));
+            TimeSpan.FromMilliseconds(40),
+            TimeSpan.FromMilliseconds(20));
 
         await engine.StartAsync(Options(detailedLogs: true), CancellationToken.None);
         Assert.Equal(ChannelState.WaitingForActivity, VoiceState(engine));
@@ -113,6 +114,10 @@ public sealed class ServiceEngineTests
             "KROT_UDP_WINNER|discord_voice|voice-01-fake-r2");
         Assert.Equal(ChannelState.WorkingPreset, VoiceState(engine));
 
+        processManager.Emit("KROT_UDP_ACTIVITY|discord_voice");
+        Assert.Equal(ChannelState.WorkingPreset, VoiceState(engine));
+
+        await Task.Delay(TimeSpan.FromMilliseconds(30));
         processManager.Emit("KROT_UDP_ACTIVITY|discord_voice");
         Assert.Equal(ChannelState.Testing, VoiceState(engine));
         processManager.Emit(
@@ -140,7 +145,8 @@ public sealed class ServiceEngineTests
     private static ServiceEngine CreateEngine(
         IZapretProcessManager processManager,
         ILogService log,
-        TimeSpan? udpConfirmationTimeout = null)
+        TimeSpan? udpConfirmationTimeout = null,
+        TimeSpan? recentUdpConfirmationGrace = null)
     {
         var runtimeRoot = Path.Combine(Path.GetTempPath(), "KROT-service-tests");
         var catalog = new BuiltInPresetCatalog(runtimeRoot);
@@ -158,7 +164,8 @@ public sealed class ServiceEngineTests
             new AlwaysOnlineProbe(),
             log,
             isFakeRuntime: true,
-            udpConfirmationTimeout: udpConfirmationTimeout);
+            udpConfirmationTimeout: udpConfirmationTimeout,
+            recentUdpConfirmationGrace: recentUdpConfirmationGrace);
     }
 
     private static ChannelState VoiceState(ServiceEngine engine) =>
