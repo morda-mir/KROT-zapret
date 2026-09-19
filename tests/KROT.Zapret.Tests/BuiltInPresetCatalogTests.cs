@@ -115,6 +115,7 @@ public sealed class BuiltInPresetCatalogTests
         Assert.Contains(
             plan.VoiceArguments,
             argument => argument.StartsWith("--lua-desync=krot_circular:key=discord_voice")
+                        && argument.Contains(":activity_out=6")
                         && argument.Contains(":ids=voice-01-fake-r2,")
                         && argument.EndsWith(":udp_in=0"));
         Assert.Contains("--filter-l7=discord,stun", plan.VoiceArguments);

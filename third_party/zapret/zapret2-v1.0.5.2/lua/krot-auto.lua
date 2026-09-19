@@ -19,6 +19,16 @@ local function krot_strategy_id(ids, strategy)
 	return nil
 end
 
+local function krot_activity_ready(desync)
+	local threshold = tonumber(desync.arg.activity_out) or 1
+	if threshold < 1 then
+		threshold = 1
+	end
+	return desync.dis.udp
+		and desync.outgoing
+		and pos_get(desync, "n", false) >= threshold
+end
+
 function krot_circular(ctx, desync)
 	if desync.track then
 		local hrec = automate_host_record(desync)
@@ -26,6 +36,7 @@ function krot_circular(ctx, desync)
 		local channel = desync.arg.channel
 		if crec
 			and krot_valid_channel(channel)
+			and krot_activity_ready(desync)
 			and not krot_activity_reported[crec] then
 			krot_activity_reported[crec] = true
 			print("KROT_UDP_ACTIVITY|" .. channel)
