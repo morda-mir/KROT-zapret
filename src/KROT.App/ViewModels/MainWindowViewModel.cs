@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Diagnostics;
+using System.IO;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -20,6 +21,7 @@ public sealed class MainWindowViewModel : ObservableObject, IDisposable
     public const string ProjectRepositoryUrl = "https://github.com/morda-mir/KROT-zapret";
     public const string ZapretOfficialUrl = "https://github.com/bol-van/zapret";
     public const string TelegramProxyRepositoryUrl = "https://github.com/Flowseal/tg-ws-proxy";
+    public const string WinDivertOfficialUrl = "https://github.com/basil00/WinDivert";
     private static readonly TimeSpan UpdateCheckInterval = TimeSpan.FromDays(1);
     private static readonly TimeSpan UpdateNotificationInterval = TimeSpan.FromDays(3);
 
@@ -37,6 +39,7 @@ public sealed class MainWindowViewModel : ObservableObject, IDisposable
     private bool _isFakeRuntime;
     private bool _externalTunnelDetected;
     private bool _isHelpOpen;
+    private bool _isLicensesOpen;
     private bool _autoStart;
     private bool _detailedLogs;
     private readonly Task _statusPollingTask;
@@ -70,12 +73,15 @@ public sealed class MainWindowViewModel : ObservableObject, IDisposable
             CanToggleRuntime,
             AsyncRelayCommandOptions.AllowConcurrentExecutions);
         ToggleHelpCommand = new RelayCommand(() => IsHelpOpen = !IsHelpOpen);
+        ToggleLicensesCommand = new RelayCommand(() => IsLicensesOpen = !IsLicensesOpen);
         SetRussianCommand = new RelayCommand(() => SetLanguage("ru"));
         SetEnglishCommand = new RelayCommand(() => SetLanguage("en"));
         OpenProjectRepositoryCommand = new RelayCommand(() => OpenUrl(ProjectRepositoryUrl));
         OpenZapretCommand = new RelayCommand(() => OpenUrl(ZapretOfficialUrl));
         OpenTelegramProxyRepositoryCommand = new RelayCommand(
             () => OpenUrl(TelegramProxyRepositoryUrl));
+        OpenWinDivertCommand = new RelayCommand(() => OpenUrl(WinDivertOfficialUrl));
+        OpenThirdPartyNoticesCommand = new RelayCommand(OpenThirdPartyNotices);
         OpenAvailableUpdateCommand = new RelayCommand(
             OpenAvailableUpdate,
             () => AvailableUpdate != null);
@@ -97,6 +103,8 @@ public sealed class MainWindowViewModel : ObservableObject, IDisposable
 
     public IRelayCommand ToggleHelpCommand { get; }
 
+    public IRelayCommand ToggleLicensesCommand { get; }
+
     public IRelayCommand SetRussianCommand { get; }
 
     public IRelayCommand SetEnglishCommand { get; }
@@ -106,6 +114,10 @@ public sealed class MainWindowViewModel : ObservableObject, IDisposable
     public IRelayCommand OpenZapretCommand { get; }
 
     public IRelayCommand OpenTelegramProxyRepositoryCommand { get; }
+
+    public IRelayCommand OpenWinDivertCommand { get; }
+
+    public IRelayCommand OpenThirdPartyNoticesCommand { get; }
 
     public IRelayCommand OpenAvailableUpdateCommand { get; }
 
@@ -137,6 +149,8 @@ public sealed class MainWindowViewModel : ObservableObject, IDisposable
 
     public string AboutText => _localization.Get("Menu.About");
 
+    public string AboutDescriptionText => _localization.Get("Menu.AboutDescription");
+
     public string ProjectRepositoryText => _localization.Get("Menu.ProjectRepository");
 
     public string ZapretText => _localization.Get("Menu.Zapret");
@@ -144,7 +158,11 @@ public sealed class MainWindowViewModel : ObservableObject, IDisposable
     public string TelegramProxyRepositoryText =>
         _localization.Get("Menu.TelegramProxyRepository");
 
+    public string WinDivertText => _localization.Get("Menu.WinDivert");
+
     public string LicensesText => _localization.Get("Menu.Licenses");
+
+    public string AllLicensesText => _localization.Get("Menu.AllLicenses");
 
     public string VersionText =>
         $"{_localization.Get("Menu.Version")} {ApplicationVersionProvider.Current}";
@@ -243,7 +261,19 @@ public sealed class MainWindowViewModel : ObservableObject, IDisposable
     public bool IsHelpOpen
     {
         get => _isHelpOpen;
-        set => SetProperty(ref _isHelpOpen, value);
+        set
+        {
+            if (SetProperty(ref _isHelpOpen, value) && !value)
+            {
+                IsLicensesOpen = false;
+            }
+        }
+    }
+
+    public bool IsLicensesOpen
+    {
+        get => _isLicensesOpen;
+        set => SetProperty(ref _isLicensesOpen, value);
     }
 
     public bool AutoStart
@@ -822,10 +852,13 @@ public sealed class MainWindowViewModel : ObservableObject, IDisposable
         OnPropertyChanged(nameof(LogsText));
         OnPropertyChanged(nameof(ViewLogsText));
         OnPropertyChanged(nameof(AboutText));
+        OnPropertyChanged(nameof(AboutDescriptionText));
         OnPropertyChanged(nameof(ProjectRepositoryText));
         OnPropertyChanged(nameof(ZapretText));
         OnPropertyChanged(nameof(TelegramProxyRepositoryText));
+        OnPropertyChanged(nameof(WinDivertText));
         OnPropertyChanged(nameof(LicensesText));
+        OnPropertyChanged(nameof(AllLicensesText));
         OnPropertyChanged(nameof(VersionText));
         OnPropertyChanged(nameof(CurrentLanguage));
         OnPropertyChanged(nameof(TrayOpenText));
@@ -874,6 +907,19 @@ public sealed class MainWindowViewModel : ObservableObject, IDisposable
         }
 
         Process.Start(new ProcessStartInfo(url) { UseShellExecute = true });
+    }
+
+    private void OpenThirdPartyNotices()
+    {
+        var path = Path.Combine(
+            AppDomain.CurrentDomain.BaseDirectory,
+            "THIRD_PARTY_NOTICES.txt");
+        if (!File.Exists(path))
+        {
+            return;
+        }
+
+        Process.Start(new ProcessStartInfo(path) { UseShellExecute = true });
     }
 
     private bool OpenTelegramProxy()

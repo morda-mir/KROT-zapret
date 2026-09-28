@@ -400,7 +400,13 @@
                        FontSize="11"
                        VerticalAlignment="Center" />
           </Grid>
-          <Separator Margin="0,7" Background="#46515B" />
+          <TextBlock Text="{Binding AboutDescriptionText}"
+                     Margin="0,6,0,0"
+                     Foreground="{StaticResource MutedTextBrush}"
+                     FontSize="11"
+                     LineHeight="16"
+                     TextWrapping="Wrap" />
+          <Separator Margin="0,8" Background="#46515B" />
           <Grid Margin="0,0,0,6">
             <Grid.ColumnDefinitions>
               <ColumnDefinition Width="Auto" />
@@ -431,55 +437,141 @@
           </Grid>
           <Button Command="{Binding OpenProjectRepositoryCommand}"
                   Padding="10,6"
-                  HorizontalContentAlignment="Left">
-            <StackPanel Orientation="Horizontal">
+                   HorizontalContentAlignment="Stretch">
+            <Grid>
+              <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="Auto" />
+              </Grid.ColumnDefinitions>
               <Image Source="pack://application:,,,/KROT;component/assets/services/github-dark-512px.png"
                      Width="20"
                      Height="20"
                      Stretch="Uniform"
                      RenderOptions.BitmapScalingMode="HighQuality" />
-              <TextBlock Text="{Binding ProjectRepositoryText}"
+              <TextBlock Grid.Column="1"
+                         Text="{Binding ProjectRepositoryText}"
                          VerticalAlignment="Center"
                          Margin="9,0,0,0" />
-            </StackPanel>
+              <TextBlock Grid.Column="2"
+                         Text="MIT"
+                         Margin="12,0,0,0"
+                         Foreground="{StaticResource MutedTextBrush}"
+                         FontSize="11"
+                         VerticalAlignment="Center" />
+            </Grid>
           </Button>
-          <Button Command="{Binding OpenZapretCommand}"
-                  Margin="0,4,0,0"
-                  Padding="10,6"
-                  HorizontalContentAlignment="Left">
-            <StackPanel Orientation="Horizontal">
-              <Image Source="pack://application:,,,/KROT;component/assets/services/github-dark-512px.png"
-                     Width="20"
-                     Height="20"
-                     Stretch="Uniform"
-                     RenderOptions.BitmapScalingMode="HighQuality" />
-              <TextBlock Text="{Binding ZapretText}"
-                         VerticalAlignment="Center"
-                         Margin="9,0,0,0" />
-            </StackPanel>
-          </Button>
-          <Button Command="{Binding OpenTelegramProxyRepositoryCommand}"
-                  Margin="0,4,0,0"
-                  Padding="10,6"
-                  HorizontalContentAlignment="Left">
-            <StackPanel Orientation="Horizontal">
-              <Image Source="pack://application:,,,/KROT;component/assets/services/github-dark-512px.png"
-                     Width="20"
-                     Height="20"
-                     Stretch="Uniform"
-                     RenderOptions.BitmapScalingMode="HighQuality" />
-              <TextBlock Text="{Binding TelegramProxyRepositoryText}"
-                         VerticalAlignment="Center"
-                         Margin="9,0,0,0" />
-            </StackPanel>
-          </Button>
-          <StackPanel Orientation="Horizontal" Margin="2,8,0,0">
-            <TextBlock Text="{Binding LicensesText}"
-                       Foreground="{StaticResource MutedTextBrush}" />
-            <TextBlock Text="KROT zapret · MIT"
-                       Foreground="{StaticResource MutedTextBrush}"
-                       Margin="8,0,0,0" />
-          </StackPanel>
+          <Grid Margin="0,4,0,0">
+            <Button x:Name="LicensesButton"
+                    Command="{Binding ToggleLicensesCommand}"
+                    Padding="10,7"
+                    HorizontalContentAlignment="Stretch">
+              <Grid>
+                <Grid.ColumnDefinitions>
+                  <ColumnDefinition Width="*" />
+                  <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+                <TextBlock Text="{Binding LicensesText}"
+                           VerticalAlignment="Center" />
+                <Path Grid.Column="1"
+                      Width="10"
+                      Height="6"
+                      Margin="10,0,0,0"
+                      Data="M 1,1 L 5,5 L 9,1"
+                      Stroke="{StaticResource MutedTextBrush}"
+                      StrokeThickness="1.5"
+                      StrokeStartLineCap="Round"
+                      StrokeEndLineCap="Round"
+                      StrokeLineJoin="Round"
+                      RenderTransformOrigin="0.5,0.5">
+                  <Path.Style>
+                    <Style TargetType="Path">
+                      <Setter Property="RenderTransform">
+                        <Setter.Value>
+                          <RotateTransform Angle="0" />
+                        </Setter.Value>
+                      </Setter>
+                      <Style.Triggers>
+                        <DataTrigger Binding="{Binding IsLicensesOpen}" Value="True">
+                          <Setter Property="RenderTransform">
+                            <Setter.Value>
+                              <RotateTransform Angle="180" />
+                            </Setter.Value>
+                          </Setter>
+                        </DataTrigger>
+                      </Style.Triggers>
+                    </Style>
+                  </Path.Style>
+                </Path>
+              </Grid>
+            </Button>
+            <Popup PlacementTarget="{Binding ElementName=LicensesButton}"
+                   Placement="Bottom"
+                   VerticalOffset="4"
+                   DataContext="{Binding DataContext, ElementName=LicensesButton}"
+                   IsOpen="{Binding IsLicensesOpen, Mode=TwoWay}"
+                   StaysOpen="False"
+                   AllowsTransparency="True">
+              <Border Width="260"
+                      Padding="6"
+                      CornerRadius="12"
+                      Background="#1D2329"
+                      BorderBrush="#46515B"
+                      BorderThickness="1">
+                <Border.Effect>
+                  <DropShadowEffect Color="#000000"
+                                    BlurRadius="18"
+                                    ShadowDepth="6"
+                                    Opacity="0.42" />
+                </Border.Effect>
+                <StackPanel>
+                  <Button Command="{Binding OpenZapretCommand}"
+                          Padding="9,6"
+                          HorizontalContentAlignment="Stretch">
+                    <Grid>
+                      <TextBlock Text="{Binding ZapretText}" />
+                      <TextBlock Text="MIT"
+                                 HorizontalAlignment="Right"
+                                 Foreground="{StaticResource MutedTextBrush}"
+                                 FontSize="11" />
+                    </Grid>
+                  </Button>
+                  <Button Command="{Binding OpenTelegramProxyRepositoryCommand}"
+                          Margin="0,2,0,0"
+                          Padding="9,6"
+                          HorizontalContentAlignment="Stretch">
+                    <Grid>
+                      <TextBlock Text="{Binding TelegramProxyRepositoryText}" />
+                      <TextBlock Text="MIT"
+                                 HorizontalAlignment="Right"
+                                 Foreground="{StaticResource MutedTextBrush}"
+                                 FontSize="11" />
+                    </Grid>
+                  </Button>
+                  <Button Command="{Binding OpenWinDivertCommand}"
+                          Margin="0,2,0,0"
+                          Padding="9,6"
+                          HorizontalContentAlignment="Stretch">
+                    <Grid>
+                      <TextBlock Text="{Binding WinDivertText}" />
+                      <TextBlock Text="LGPL-3.0"
+                                 HorizontalAlignment="Right"
+                                 Foreground="{StaticResource MutedTextBrush}"
+                                 FontSize="11" />
+                    </Grid>
+                  </Button>
+                  <Separator Margin="4,5" Background="#46515B" />
+                  <Button Command="{Binding OpenThirdPartyNoticesCommand}"
+                          Padding="9,6"
+                          HorizontalContentAlignment="Left">
+                    <TextBlock Text="{Binding AllLicensesText}"
+                               Foreground="{StaticResource MutedTextBrush}"
+                               FontSize="11" />
+                  </Button>
+                </StackPanel>
+              </Border>
+            </Popup>
+          </Grid>
           </StackPanel>
         </Border>
       </Grid>
