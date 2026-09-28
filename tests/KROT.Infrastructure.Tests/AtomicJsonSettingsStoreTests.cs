@@ -25,6 +25,7 @@ public sealed class AtomicJsonSettingsStoreTests : IDisposable
         {
             Language = "en",
             DetailedLogs = true,
+            TelegramProxyConfigured = true,
             LastUpdateNotificationVersion = "1.1",
             LastUpdateNotificationUtc = new DateTime(2026, 7, 29, 10, 0, 0, DateTimeKind.Utc)
         };
@@ -36,6 +37,9 @@ public sealed class AtomicJsonSettingsStoreTests : IDisposable
 
         Assert.Equal("ru", loaded.Language);
         Assert.True(loaded.DetailedLogs);
+        Assert.True(loaded.TelegramProxyConfigured);
+        Assert.True(KrotSettings.IsValidTelegramProxySecret(
+            loaded.TelegramProxySecret));
         Assert.Equal("1.1", loaded.LastUpdateNotificationVersion);
         Assert.Equal(settings.LastUpdateNotificationUtc, loaded.LastUpdateNotificationUtc);
         Assert.True(File.Exists(path + ".bak"));
@@ -49,17 +53,17 @@ public sealed class AtomicJsonSettingsStoreTests : IDisposable
         Directory.CreateDirectory(_directory);
         File.WriteAllText(
             path,
-            "{\"Services\":[{\"Id\":0,\"IsEnabled\":true},{\"Id\":0,\"IsEnabled\":false},{\"Id\":2,\"IsEnabled\":true},{\"Id\":3,\"IsEnabled\":true}]}");
+            "{\"Services\":[{\"Id\":0,\"IsEnabled\":true},{\"Id\":0,\"IsEnabled\":false},{\"Id\":3,\"IsEnabled\":true},{\"Id\":4,\"IsEnabled\":true}]}");
 
         var loaded = await new AtomicJsonSettingsStore(path)
             .LoadAsync(CancellationToken.None);
 
-        Assert.Equal(2, loaded.Services.Count);
+        Assert.Equal(3, loaded.Services.Count);
         Assert.Equal(KrotSettings.CurrentSchemaVersion, loaded.SchemaVersion);
         Assert.True(loaded.Services.Single(x => x.Id == ServiceId.Discord).IsEnabled);
-        Assert.DoesNotContain(loaded.Services, x => (int)x.Id == 2);
-        Assert.DoesNotContain("\"Id\": 2", File.ReadAllText(path));
+        Assert.False(loaded.Services.Single(x => x.Id == ServiceId.Telegram).IsEnabled);
         Assert.DoesNotContain("\"Id\": 3", File.ReadAllText(path));
+        Assert.DoesNotContain("\"Id\": 4", File.ReadAllText(path));
     }
 
     [Fact]
@@ -73,8 +77,10 @@ public sealed class AtomicJsonSettingsStoreTests : IDisposable
             .LoadAsync(CancellationToken.None);
 
         Assert.Equal("ru", loaded.Language);
-        Assert.Equal(2, loaded.Services.Count);
+        Assert.Equal(3, loaded.Services.Count);
         Assert.All(loaded.Services, service => Assert.False(service.IsEnabled));
+        Assert.True(KrotSettings.IsValidTelegramProxySecret(
+            loaded.TelegramProxySecret));
     }
 
     [Fact]
@@ -89,7 +95,7 @@ public sealed class AtomicJsonSettingsStoreTests : IDisposable
             .LoadAsync(CancellationToken.None);
 
         Assert.Equal("ru", loaded.Language);
-        Assert.Equal(2, loaded.Services.Count);
+        Assert.Equal(3, loaded.Services.Count);
         Assert.DoesNotContain("invalid", File.ReadAllText(path));
     }
 

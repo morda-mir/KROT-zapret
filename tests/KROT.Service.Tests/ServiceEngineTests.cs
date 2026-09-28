@@ -94,6 +94,38 @@ public sealed class ServiceEngineTests
     }
 
     [Fact]
+    public async Task Telegram_StartRefreshAndStop_TracksProxyState()
+    {
+        var processManager = new FakeZapretProcessManager();
+        var telegramProxyManager = new FakeTelegramProxyManager();
+        var log = new RecordingLog();
+        var engine = CreateEngine(
+            processManager,
+            log,
+            telegramProxyManager: telegramProxyManager);
+        var options = new KrotStartOptions
+        {
+            TelegramProxySecret = "00112233445566778899aabbccddeeff"
+        };
+        options.Services.Add(ServiceId.Telegram);
+
+        await engine.StartAsync(options, CancellationToken.None);
+
+        Assert.True(telegramProxyManager.IsRunning);
+        Assert.Equal(
+            ChannelState.WorkingPreset,
+            engine.Snapshot.Channels.Single(item =>
+                item.ServiceId == ServiceId.Telegram
+                && item.ChannelId == "proxy").State);
+
+        await engine.RefreshServiceAsync(ServiceId.Telegram, CancellationToken.None);
+        Assert.True(telegramProxyManager.IsRunning);
+
+        await engine.StopAsync(CancellationToken.None);
+        Assert.False(telegramProxyManager.IsRunning);
+    }
+
+    [Fact]
     public async Task DiscordVoice_TracksActivityWinnerAndFailure()
     {
         var processManager = new OutputProcessManager();
@@ -129,7 +161,9 @@ public sealed class ServiceEngineTests
         processManager.Emit("KROT_UDP_ACTIVITY|discord_voice");
         Assert.Equal(ChannelState.Testing, VoiceState(engine));
 
-        await Task.Delay(TimeSpan.FromMilliseconds(150));
+        await WaitUntilAsync(
+            () => VoiceState(engine) == ChannelState.Failed,
+            TimeSpan.FromSeconds(2));
         Assert.Equal(ChannelState.Failed, VoiceState(engine));
         Assert.Contains(log.InfoEvents, item => item == "preset.udp.failed");
 
@@ -146,7 +180,8 @@ public sealed class ServiceEngineTests
         IZapretProcessManager processManager,
         ILogService log,
         TimeSpan? udpConfirmationTimeout = null,
-        TimeSpan? recentUdpConfirmationGrace = null)
+        TimeSpan? recentUdpConfirmationGrace = null,
+        ITelegramProxyManager? telegramProxyManager = null)
     {
         var runtimeRoot = Path.Combine(Path.GetTempPath(), "KROT-service-tests");
         var catalog = new BuiltInPresetCatalog(runtimeRoot);
@@ -165,7 +200,8 @@ public sealed class ServiceEngineTests
             log,
             isFakeRuntime: true,
             udpConfirmationTimeout: udpConfirmationTimeout,
-            recentUdpConfirmationGrace: recentUdpConfirmationGrace);
+            recentUdpConfirmationGrace: recentUdpConfirmationGrace,
+            telegramProxyManager: telegramProxyManager);
     }
 
     private static ChannelState VoiceState(ServiceEngine engine) =>
@@ -385,6 +421,22 @@ public sealed class ServiceEngineTests
                     Role = "voice",
                     Line = line
                 });
+    }
+
+    private static async Task WaitUntilAsync(
+        Func<bool> condition,
+        TimeSpan timeout)
+    {
+        var deadline = DateTime.UtcNow + timeout;
+        while (!condition())
+        {
+            if (DateTime.UtcNow >= deadline)
+            {
+                throw new TimeoutException("Condition was not reached.");
+            }
+
+            await Task.Delay(TimeSpan.FromMilliseconds(10));
+        }
     }
 
     private static RuntimeProcessRecord Record(string role) => new()

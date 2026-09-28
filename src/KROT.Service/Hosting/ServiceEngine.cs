@@ -33,6 +33,7 @@ public sealed class ServiceEngine
     private readonly NetworkEnvironmentInspector _networkInspector;
     private readonly IInternetAvailabilityProbe _internetProbe;
     private readonly ILogService _log;
+    private readonly ITelegramProxyManager? _telegramProxyManager;
     private readonly bool _isFakeRuntime;
     private readonly TimeSpan _udpConfirmationTimeout;
     private readonly TimeSpan _recentUdpConfirmationGrace;
@@ -76,7 +77,8 @@ public sealed class ServiceEngine
         ILogService log,
         bool isFakeRuntime,
         TimeSpan? udpConfirmationTimeout = null,
-        TimeSpan? recentUdpConfirmationGrace = null)
+        TimeSpan? recentUdpConfirmationGrace = null,
+        ITelegramProxyManager? telegramProxyManager = null)
     {
         _processManager = processManager;
         _presetCatalog = presetCatalog;
@@ -84,6 +86,7 @@ public sealed class ServiceEngine
         _networkInspector = networkInspector;
         _internetProbe = internetProbe;
         _log = log;
+        _telegramProxyManager = telegramProxyManager;
         _isFakeRuntime = isFakeRuntime;
         _udpConfirmationTimeout =
             udpConfirmationTimeout ?? DefaultUdpConfirmationTimeout;
@@ -223,6 +226,28 @@ public sealed class ServiceEngine
                     .ConfigureAwait(false);
             }
 
+            if (options.Services.Contains(ServiceId.Telegram))
+            {
+                if (_telegramProxyManager == null)
+                {
+                    throw new InvalidOperationException(
+                        "Telegram proxy runtime is not available.");
+                }
+
+                if (!KrotSettings.IsValidTelegramProxySecret(
+                        options.TelegramProxySecret))
+                {
+                    throw new InvalidOperationException(
+                        "Telegram proxy secret is invalid.");
+                }
+
+                await _telegramProxyManager
+                    .StartAsync(
+                        options.TelegramProxySecret,
+                        startCancellation.Token)
+                    .ConfigureAwait(false);
+            }
+
             startCancellation.Token.ThrowIfCancellationRequested();
             _stateMachine.TransitionTo(
                 allTcpReachable ? AppState.Running : AppState.PartialFailure);
@@ -251,6 +276,13 @@ public sealed class ServiceEngine
             _log.Error("runtime.start.failed", "Failed to start KROT runtime.", ex);
             try
             {
+                if (_telegramProxyManager != null)
+                {
+                    await _telegramProxyManager
+                        .StopAsync(CancellationToken.None)
+                        .ConfigureAwait(false);
+                }
+
                 await _processManager
                     .StopAllOwnedAsync(CancellationToken.None)
                     .ConfigureAwait(false);
@@ -379,6 +411,25 @@ public sealed class ServiceEngine
                 _refreshingTcpServices.Add(serviceId);
             }
 
+            if (serviceId == ServiceId.Telegram)
+            {
+                if (_telegramProxyManager == null)
+                {
+                    throw new InvalidOperationException(
+                        "Telegram proxy runtime is not available.");
+                }
+
+                await _telegramProxyManager
+                    .RestartAsync(
+                        options.TelegramProxySecret,
+                        refreshCancellation.Token)
+                    .ConfigureAwait(false);
+                _log.Info(
+                    "telegram.proxy.refreshed",
+                    "Telegram proxy was restarted by user request.");
+                return;
+            }
+
             var network = _networkInspector.Inspect();
             SetExternalTunnelDetected(network.VpnLikely, network.DetectionReason);
             PresetSearchOutcome outcome;
@@ -469,6 +520,13 @@ public sealed class ServiceEngine
         if (_stateMachine.CanTransitionTo(AppState.Stopping))
         {
             _stateMachine.TransitionTo(AppState.Stopping);
+        }
+
+        if (_telegramProxyManager != null)
+        {
+            await _telegramProxyManager
+                .StopAsync(cancellationToken)
+                .ConfigureAwait(false);
         }
 
         await _processManager.StopAllOwnedAsync(cancellationToken).ConfigureAwait(false);
@@ -1210,6 +1268,7 @@ public sealed class ServiceEngine
             AddChannel(snapshot, ServiceId.Discord, "voice");
             AddChannel(snapshot, ServiceId.YouTube, "site");
             AddChannel(snapshot, ServiceId.YouTube, "video");
+            AddChannel(snapshot, ServiceId.Telegram, "proxy");
             return snapshot;
         }
     }
@@ -1262,6 +1321,18 @@ public sealed class ServiceEngine
             return ChannelState.Unknown;
         }
 
+        if (_refreshingTcpServices.Contains(serviceId))
+        {
+            return ChannelState.Searching;
+        }
+
+        if (serviceId == ServiceId.Telegram)
+        {
+            return _telegramProxyManager?.IsRunning == true
+                ? ChannelState.WorkingPreset
+                : ChannelState.Failed;
+        }
+
         if (serviceId == ServiceId.Discord && channelId == "voice")
         {
             if (_activeOptions?.SkipVoice == true)
@@ -1282,11 +1353,6 @@ public sealed class ServiceEngine
             return _activeUdpChannels.Contains("discord_voice")
                 ? ChannelState.Testing
                 : ChannelState.WaitingForActivity;
-        }
-
-        if (_refreshingTcpServices.Contains(serviceId))
-        {
-            return ChannelState.Searching;
         }
 
         if (_tcpCheckingUntilUtc.TryGetValue(serviceId, out var checkingUntilUtc))
@@ -1380,6 +1446,11 @@ public sealed class ServiceEngine
                 : _activeSelection.YouTubeTcp;
         }
 
+        if (serviceId == ServiceId.Telegram)
+        {
+            return "tg-ws-proxy:v1.10.4";
+        }
+
         return string.Empty;
     }
 
@@ -1394,7 +1465,8 @@ public sealed class ServiceEngine
         {
             Services = options.Services.ToList(),
             DetailedLogs = options.DetailedLogs,
-            SkipVoice = options.SkipVoice
+            SkipVoice = options.SkipVoice,
+            TelegramProxySecret = options.TelegramProxySecret
         };
     }
 

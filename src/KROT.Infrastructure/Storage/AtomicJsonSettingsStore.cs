@@ -134,6 +134,8 @@ public sealed class AtomicJsonSettingsStore : ISettingsStore
 
     private static KrotSettings Normalize(KrotSettings settings)
     {
+        var telegramSecretWasInvalid =
+            !KrotSettings.IsValidTelegramProxySecret(settings.TelegramProxySecret);
         settings.SchemaVersion = KrotSettings.CurrentSchemaVersion;
         settings.Language = string.Equals(
             settings.Language,
@@ -142,6 +144,11 @@ public sealed class AtomicJsonSettingsStore : ISettingsStore
             ? "en"
             : "ru";
         settings.LastUpdateNotificationVersion ??= string.Empty;
+        if (telegramSecretWasInvalid)
+        {
+            settings.TelegramProxySecret = KrotSettings.CreateTelegramProxySecret();
+            settings.TelegramProxyConfigured = false;
+        }
         settings.Services = (settings.Services ?? new())
             .Where(x => Enum.IsDefined(typeof(ServiceId), x.Id))
             .GroupBy(x => x.Id)
@@ -172,6 +179,7 @@ public sealed class AtomicJsonSettingsStore : ISettingsStore
             || !string.Equals(settings.Language, "ru", StringComparison.OrdinalIgnoreCase)
                && !string.Equals(settings.Language, "en", StringComparison.OrdinalIgnoreCase)
             || settings.LastUpdateNotificationVersion == null
+            || !KrotSettings.IsValidTelegramProxySecret(settings.TelegramProxySecret)
             || settings.Services == null
             || settings.Services.Count != Enum.GetValues(typeof(ServiceId)).Length
             || settings.Services.Any(item => !Enum.IsDefined(typeof(ServiceId), item.Id))

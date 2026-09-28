@@ -2,8 +2,16 @@
   "schemaVersion": 1,
   "activeZapret2": "zapret2-v1.0.5.2",
   "legacyZapret1": "zapret1-v72.13",
+  "activeTelegramProxy": "tg-ws-proxy-v1.10.4",
   "fakeRuntimeOnly": false,
   "files": [
+    {
+      "runtimeId": "tg-ws-proxy-v1.10.4",
+      "relativePath": "telegram/tg-ws-proxy-v1.10.4/TgWsProxy_console.exe",
+      "version": "v1.10.4",
+      "sha256": "a8c3e1ef738a2cf4bb7b9480bc620ab4a259cdd82a2b70a1c98283c55586575d",
+      "sourceUrl": "https://github.com/Flowseal/tg-ws-proxy/tree/v1.10.4"
+    },
     {
       "runtimeId": "shared",
       "relativePath": "shared/cygwin1.dll",

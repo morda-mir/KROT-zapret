@@ -10,6 +10,8 @@ public sealed class RuntimeManifest
 
     public string LegacyZapret1 { get; set; } = string.Empty;
 
+    public string ActiveTelegramProxy { get; set; } = string.Empty;
+
     public List<RuntimeFileEntry> Files { get; set; } = new();
 }
 

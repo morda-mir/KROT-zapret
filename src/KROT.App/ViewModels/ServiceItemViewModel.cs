@@ -18,14 +18,18 @@ public sealed class ServiceItemViewModel : ObservableObject
         ServiceId id,
         string iconGlyph,
         string iconSource,
+        string iconGeometryData,
         bool isSelected,
         Action<ServiceItemViewModel> selectionChanged,
         Func<ServiceItemViewModel, Task> refreshRequested,
+        string actionGeometryData,
         params ChannelIndicatorViewModel[] channels)
     {
         Id = id;
         IconGlyph = iconGlyph;
         IconSource = iconSource;
+        IconGeometryData = iconGeometryData;
+        ActionGeometryData = actionGeometryData;
         _isSelected = isSelected;
         SelectionChanged = selectionChanged;
         RefreshCommand = new AsyncRelayCommand(
@@ -39,6 +43,12 @@ public sealed class ServiceItemViewModel : ObservableObject
     public string IconGlyph { get; }
 
     public string IconSource { get; }
+
+    public string IconGeometryData { get; }
+
+    public bool HasVectorIcon => !string.IsNullOrWhiteSpace(IconGeometryData);
+
+    public string ActionGeometryData { get; }
 
     public ObservableCollection<ChannelIndicatorViewModel> Channels { get; }
 

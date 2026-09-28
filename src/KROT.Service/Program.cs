@@ -42,6 +42,9 @@ internal static class Program
         var processManager = useRealRuntime
             ? (KROT.Core.Contracts.IZapretProcessManager)new RealZapretProcessManager(runtimeRoot, log)
             : new FakeZapretProcessManager();
+        var telegramProxyManager = useRealRuntime
+            ? (KROT.Core.Contracts.ITelegramProxyManager)new RealTelegramProxyManager(runtimeRoot, log)
+            : new FakeTelegramProxyManager();
         var presetCatalog = new BuiltInPresetCatalog(runtimeRoot);
         var presetSearch = new AdaptivePresetSearchEngine(
             processManager,
@@ -56,7 +59,8 @@ internal static class Program
             new NetworkEnvironmentInspector(),
             new InternetAvailabilityProbe(log),
             log,
-            isFakeRuntime: !useRealRuntime);
+            isFakeRuntime: !useRealRuntime,
+            telegramProxyManager: telegramProxyManager);
 
         try
         {
@@ -88,6 +92,7 @@ internal static class Program
         }
         finally
         {
+            (telegramProxyManager as IDisposable)?.Dispose();
             (processManager as IDisposable)?.Dispose();
         }
     }

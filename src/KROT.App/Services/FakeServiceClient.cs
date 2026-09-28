@@ -116,6 +116,7 @@ public sealed class FakeServiceClient : IServiceClient
         Add(snapshot, ServiceId.Discord, "voice", overriddenService, overriddenState);
         Add(snapshot, ServiceId.YouTube, "site", overriddenService, overriddenState);
         Add(snapshot, ServiceId.YouTube, "video", overriddenService, overriddenState);
+        Add(snapshot, ServiceId.Telegram, "proxy", overriddenService, overriddenState);
         return snapshot;
     }
 

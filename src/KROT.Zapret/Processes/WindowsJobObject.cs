@@ -58,6 +58,18 @@ internal sealed class WindowsJobObject : IDisposable
             throw new ObjectDisposedException(nameof(WindowsJobObject));
         }
 
+        if (!IsProcessInJob(process.Handle, _handle, out var alreadyAssigned))
+        {
+            throw new Win32Exception(
+                Marshal.GetLastWin32Error(),
+                "Cannot inspect the KROT runtime process job.");
+        }
+
+        if (alreadyAssigned)
+        {
+            return;
+        }
+
         if (!AssignProcessToJobObject(_handle, process.Handle))
         {
             throw new Win32Exception(
@@ -132,6 +144,12 @@ internal sealed class WindowsJobObject : IDisposable
 
     [DllImport("kernel32.dll", SetLastError = true)]
     private static extern bool AssignProcessToJobObject(IntPtr job, IntPtr process);
+
+    [DllImport("kernel32.dll", SetLastError = true)]
+    private static extern bool IsProcessInJob(
+        IntPtr process,
+        IntPtr job,
+        [MarshalAs(UnmanagedType.Bool)] out bool result);
 
     [DllImport("kernel32.dll")]
     private static extern bool CloseHandle(IntPtr handle);

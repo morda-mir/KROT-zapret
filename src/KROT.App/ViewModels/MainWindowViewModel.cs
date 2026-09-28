@@ -581,9 +581,11 @@ public sealed class MainWindowViewModel : ObservableObject, IDisposable
                 ServiceId.Discord,
                 "D",
                 "pack://application:,,,/KROT;component/assets/services/discord-512px.png",
+                string.Empty,
                 IsSelected(ServiceId.Discord),
                 OnServiceSelectionChanged,
                 RefreshServiceAsync,
+                "M19,8 A7,7 0 1 0 19,16 M19,4 V8 H15",
                 Channel(
                     "text",
                     "M6,2 H19 V21 H6 Z M3,5 H6 M3,5 V23 H17 V21 M9,7 H16 M9,11 H16 M9,15 H16 M9,19 H16",
@@ -600,9 +602,11 @@ public sealed class MainWindowViewModel : ObservableObject, IDisposable
                 ServiceId.YouTube,
                 "▶",
                 "pack://application:,,,/KROT;component/assets/services/youtube-512px.png",
+                string.Empty,
                 IsSelected(ServiceId.YouTube),
                 OnServiceSelectionChanged,
                 RefreshServiceAsync,
+                "M19,8 A7,7 0 1 0 19,16 M19,4 V8 H15",
                 Channel(
                     "site",
                     "M6,2 H19 V21 H6 Z M3,5 H6 M3,5 V23 H17 V21 M9,7 H16 M9,11 H16 M9,15 H16 M9,19 H16",
@@ -610,7 +614,20 @@ public sealed class MainWindowViewModel : ObservableObject, IDisposable
                 Channel(
                     "video",
                     "M4,7 H8 L9.5,4 H14.5 L16,7 H20 A2,2 0 0 1 22,9 V19 A2,2 0 0 1 20,21 H4 A2,2 0 0 1 2,19 V9 A2,2 0 0 1 4,7 Z M12,10 A4,4 0 1 0 12,18 A4,4 0 1 0 12,10 M19,10 L19.01,10",
-                    "Channel.YouTube.Video"))
+                    "Channel.YouTube.Video")),
+            new(
+                ServiceId.Telegram,
+                string.Empty,
+                string.Empty,
+                "M21,4 L3,11 L10,14 L14,21 Z M10,14 L21,4 M10,14 V19 L14,16",
+                IsSelected(ServiceId.Telegram),
+                OnServiceSelectionChanged,
+                RefreshServiceAsync,
+                "M14,4 H20 V10 M20,4 L11,13 M18,13 V20 H4 V6 H11",
+                Channel(
+                    "proxy",
+                    "M10,13 A5,5 0 0 0 17,13 L19,11 A5,5 0 0 0 12,4 L10,6 M14,11 A5,5 0 0 0 7,11 L5,13 A5,5 0 0 0 12,20 L14,18",
+                    "Channel.Telegram.Proxy"))
         };
     }
 
@@ -649,6 +666,10 @@ public sealed class MainWindowViewModel : ObservableObject, IDisposable
         {
             await _serviceClient
                 .RefreshServiceAsync(item.Id, _lifetime.Token);
+            if (item.Id == ServiceId.Telegram)
+            {
+                OpenTelegramProxy();
+            }
         }
         catch (OperationCanceledException) when (_lifetime.IsCancellationRequested)
         {
@@ -676,9 +697,17 @@ public sealed class MainWindowViewModel : ObservableObject, IDisposable
                 .Where(item => item.IsSelected)
                 .Select(item => item.Id)
                 .ToList(),
-            DetailedLogs = DetailedLogs
+            DetailedLogs = DetailedLogs,
+            TelegramProxySecret = _settings.TelegramProxySecret
         };
         await _serviceClient.StartAsync(options, _lifetime.Token);
+        if (options.Services.Contains(ServiceId.Telegram)
+            && !_settings.TelegramProxyConfigured
+            && OpenTelegramProxy())
+        {
+            _settings.TelegramProxyConfigured = true;
+            await SaveSettingsSafeAsync();
+        }
     }
 
     private Task SaveSettingsSafeAsync() =>
@@ -740,6 +769,8 @@ public sealed class MainWindowViewModel : ObservableObject, IDisposable
         DetailedLogs = settings.DetailedLogs,
         LastUpdateNotificationVersion = settings.LastUpdateNotificationVersion,
         LastUpdateNotificationUtc = settings.LastUpdateNotificationUtc,
+        TelegramProxySecret = settings.TelegramProxySecret,
+        TelegramProxyConfigured = settings.TelegramProxyConfigured,
         Services = settings.Services
             .Select(service => new ServiceSelection
             {
@@ -762,11 +793,13 @@ public sealed class MainWindowViewModel : ObservableObject, IDisposable
     {
         foreach (var service in Services)
         {
-            service.RefreshTooltip = string.Format(
-                _localization.Get("Action.RecheckService"),
-                _localization.Get(service.Id == ServiceId.Discord
-                    ? "Service.Discord"
-                    : "Service.YouTube"));
+            service.RefreshTooltip = service.Id == ServiceId.Telegram
+                ? _localization.Get("Action.ConnectTelegram")
+                : string.Format(
+                    _localization.Get("Action.RecheckService"),
+                    _localization.Get(service.Id == ServiceId.Discord
+                        ? "Service.Discord"
+                        : "Service.YouTube"));
             foreach (var channel in service.Channels)
             {
                 RefreshChannelTooltip(channel);
@@ -832,6 +865,31 @@ public sealed class MainWindowViewModel : ObservableObject, IDisposable
         }
 
         Process.Start(new ProcessStartInfo(url) { UseShellExecute = true });
+    }
+
+    private bool OpenTelegramProxy()
+    {
+        if (!KrotSettings.IsValidTelegramProxySecret(
+                _settings.TelegramProxySecret))
+        {
+            return false;
+        }
+
+        try
+        {
+            OpenUrl(
+                "tg://proxy?server=127.0.0.1&port=1443&secret=dd"
+                + _settings.TelegramProxySecret);
+            return true;
+        }
+        catch (Exception ex)
+        {
+            _log.Error(
+                "telegram.proxy.open.failed",
+                "Could not open the Telegram proxy link.",
+                ex);
+            return false;
+        }
     }
 
 }

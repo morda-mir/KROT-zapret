@@ -9,4 +9,6 @@ public sealed class KrotStartOptions
     public bool DetailedLogs { get; set; }
 
     public bool SkipVoice { get; set; }
+
+    public string TelegramProxySecret { get; set; } = string.Empty;
 }

@@ -211,7 +211,7 @@ public sealed class NamedPipeCommandServer
                     break;
                 case "refresh-service":
                     if (request.ServiceId is not (
-                            ServiceId.Discord or ServiceId.YouTube))
+                            ServiceId.Discord or ServiceId.YouTube or ServiceId.Telegram))
                     {
                         throw new InvalidOperationException(
                             "A supported service must be specified.");
@@ -273,13 +273,21 @@ public sealed class NamedPipeCommandServer
     {
         options.Services = (options.Services ?? new List<ServiceId>())
             .FindAll(service =>
-                service is ServiceId.Discord or ServiceId.YouTube);
+                service is ServiceId.Discord or ServiceId.YouTube or ServiceId.Telegram);
         options.Services = new List<ServiceId>(
             new HashSet<ServiceId>(options.Services));
         if (options.Services.Count == 0)
         {
             throw new InvalidOperationException(
                 "At least one supported service must be selected.");
+        }
+
+        if (options.Services.Contains(ServiceId.Telegram)
+            && !KrotSettings.IsValidTelegramProxySecret(
+                options.TelegramProxySecret))
+        {
+            throw new InvalidOperationException(
+                "Telegram proxy secret is invalid.");
         }
 
         return options;

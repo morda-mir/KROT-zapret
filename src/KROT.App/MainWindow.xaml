@@ -5,7 +5,7 @@
         xmlns:vm="clr-namespace:KROT.App.ViewModels"
         Title="{Binding Title}"
         Width="400"
-        Height="320"
+        Height="380"
         ResizeMode="NoResize"
         WindowStyle="None"
         Background="Transparent"
@@ -148,6 +148,21 @@
                           </Style>
                         </Image.Style>
                       </Image>
+                      <Viewbox Width="30"
+                               Height="30"
+                               Stretch="Uniform"
+                               Visibility="{Binding HasVectorIcon, Converter={StaticResource BoolToVisibility}}">
+                        <Path Width="24"
+                              Height="24"
+                              Data="{Binding IconGeometryData}"
+                              Fill="Transparent"
+                              Stroke="{StaticResource TextBrush}"
+                              StrokeThickness="1.8"
+                              StrokeStartLineCap="Round"
+                              StrokeEndLineCap="Round"
+                              StrokeLineJoin="Round"
+                              Stretch="Uniform" />
+                      </Viewbox>
                       <TextBlock Text="{Binding IconGlyph}"
                                  Foreground="{StaticResource TextBrush}"
                                  FontSize="16"
@@ -160,6 +175,9 @@
                             <Style.Triggers>
                               <DataTrigger Binding="{Binding IconSource}" Value="">
                                 <Setter Property="Visibility" Value="Visible" />
+                              </DataTrigger>
+                              <DataTrigger Binding="{Binding HasVectorIcon}" Value="True">
+                                <Setter Property="Visibility" Value="Collapsed" />
                               </DataTrigger>
                             </Style.Triggers>
                           </Style>
@@ -267,7 +285,7 @@
                       </Style>
                     </Button.Style>
                     <Viewbox Width="16" Height="16" Stretch="Uniform">
-                      <Path Data="M19,8 A7,7 0 1 0 19,16 M19,4 V8 H15"
+                      <Path Data="{Binding ActionGeometryData}"
                             Fill="Transparent"
                             Stroke="#8B959D"
                             StrokeThickness="1.8"
