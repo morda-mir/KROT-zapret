@@ -126,6 +126,30 @@ public sealed class ServiceEngineTests
     }
 
     [Fact]
+    public async Task HealthMonitor_SingleTransientFailure_KeepsWorkingState()
+    {
+        var processManager = new FakeZapretProcessManager();
+        var log = new RecordingLog();
+        var engine = CreateEngine(processManager, log);
+        var options = new KrotStartOptions();
+        options.Services.Add(ServiceId.YouTube);
+
+        await engine.StartAsync(options, CancellationToken.None);
+        engine.ApplyUnconfirmedTcpReachability(
+            new Dictionary<ServiceId, bool>
+            {
+                [ServiceId.YouTube] = false
+            });
+
+        Assert.All(
+            engine.Snapshot.Channels.Where(item =>
+                item.ServiceId == ServiceId.YouTube),
+            item => Assert.Equal(ChannelState.WorkingPreset, item.State));
+
+        await engine.StopAsync(CancellationToken.None);
+    }
+
+    [Fact]
     public async Task DiscordVoice_TracksActivityWinnerAndFailure()
     {
         var processManager = new OutputProcessManager();

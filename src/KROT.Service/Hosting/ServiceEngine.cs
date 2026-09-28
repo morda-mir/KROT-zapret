@@ -855,7 +855,6 @@ public sealed class ServiceEngine
                     results = await _presetSearch
                         .ProbeTcpAsync(services, cancellationToken)
                         .ConfigureAwait(false);
-                    UpdateTcpReachability(results);
                 }
                 finally
                 {
@@ -869,6 +868,11 @@ public sealed class ServiceEngine
                             ? count + 1
                             : 1;
                 }
+
+                // A single endpoint timeout is common on otherwise healthy
+                // connections. Keep the last confirmed working state until a
+                // second failure and the dedicated confirmation probe agree.
+                ApplyUnconfirmedTcpReachability(results);
 
                 var fingerprintChanged = !string.Equals(
                     network.FingerprintSha256,
@@ -1006,6 +1010,15 @@ public sealed class ServiceEngine
                 "VPN and system proxy monitoring failed.",
                 ex);
         }
+    }
+
+    internal void ApplyUnconfirmedTcpReachability(
+        IReadOnlyDictionary<ServiceId, bool> results)
+    {
+        UpdateTcpReachability(
+            results
+                .Where(result => result.Value)
+                .ToDictionary(result => result.Key, result => true));
     }
 
     private void SetInternetUnavailable(bool unavailable)
