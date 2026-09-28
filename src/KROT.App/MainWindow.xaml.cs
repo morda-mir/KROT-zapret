@@ -1,8 +1,10 @@
 using System;
 using System.ComponentModel;
+using System.Runtime.InteropServices;
 using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Input;
+using System.Windows.Interop;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using KROT.App.ViewModels;
@@ -13,6 +15,10 @@ namespace KROT.App;
 
 public partial class MainWindow
 {
+    private const int WmSetIcon = 0x0080;
+    private static readonly IntPtr IconSmall = IntPtr.Zero;
+    private static readonly IntPtr IconBig = new(1);
+    private static readonly IntPtr IconSmall2 = new(2);
     private readonly MainWindowViewModel _viewModel;
     private readonly Forms.NotifyIcon _trayIcon;
     private readonly System.Drawing.Icon _trayOffIcon;
@@ -50,6 +56,7 @@ public partial class MainWindow
         _trayIcon.BalloonTipClicked += OnUpdateBalloonTipClicked;
         _viewModel.PropertyChanged += OnViewModelPropertyChanged;
         _viewModel.RequestUpdateNotification += OnRequestUpdateNotification;
+        SourceInitialized += OnSourceInitialized;
         Loaded += OnLoaded;
         UpdateStatusIcons();
     }
@@ -69,6 +76,7 @@ public partial class MainWindow
         _viewModel.RequestOpenLogs -= OnRequestOpenLogs;
         _viewModel.RequestUpdateNotification -= OnRequestUpdateNotification;
         _viewModel.PropertyChanged -= OnViewModelPropertyChanged;
+        SourceInitialized -= OnSourceInitialized;
         Loaded -= OnLoaded;
         _trayIcon.BalloonTipClicked -= OnUpdateBalloonTipClicked;
         _trayIcon.Visible = false;
@@ -125,6 +133,9 @@ public partial class MainWindow
     private void OnLoaded(object sender, RoutedEventArgs e) =>
         _viewModel.StartUpdateChecks();
 
+    private void OnSourceInitialized(object? sender, EventArgs e) =>
+        UpdateStatusIcons();
+
     private void OnRequestOpenLogs(object? sender, EventArgs e)
     {
         var logWindow = new LogWindow(_viewModel.CurrentLanguage) { Owner = this };
@@ -178,6 +189,20 @@ public partial class MainWindow
         var trayIcon = active ? _trayOnIcon : _trayOffIcon;
         _trayIcon.Icon = trayIcon;
         Icon = active ? _windowOnIcon : _windowOffIcon;
+        ApplyNativeWindowIcon(trayIcon);
+    }
+
+    private void ApplyNativeWindowIcon(System.Drawing.Icon icon)
+    {
+        var windowHandle = new WindowInteropHelper(this).Handle;
+        if (windowHandle == IntPtr.Zero)
+        {
+            return;
+        }
+
+        SendMessage(windowHandle, WmSetIcon, IconSmall, icon.Handle);
+        SendMessage(windowHandle, WmSetIcon, IconBig, icon.Handle);
+        SendMessage(windowHandle, WmSetIcon, IconSmall2, icon.Handle);
     }
 
     private static System.Drawing.Icon LoadTrayIcon(string resourcePath)
@@ -203,4 +228,11 @@ public partial class MainWindow
         image.Freeze();
         return image;
     }
+
+    [DllImport("user32.dll")]
+    private static extern IntPtr SendMessage(
+        IntPtr windowHandle,
+        int message,
+        IntPtr wordParameter,
+        IntPtr longParameter);
 }
