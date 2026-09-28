@@ -95,8 +95,6 @@ public partial class MainWindow
     private void Minimize_OnClick(object sender, RoutedEventArgs e) =>
         WindowState = WindowState.Minimized;
 
-    private void Close_OnClick(object sender, RoutedEventArgs e) => Close();
-
     protected override void OnStateChanged(EventArgs e)
     {
         base.OnStateChanged(e);
@@ -111,6 +109,18 @@ public partial class MainWindow
     }
 
     private void OpenLogs_OnClick(object sender, RoutedEventArgs e) => _viewModel.OpenLogs();
+
+    private void HelpBackdrop_OnMouseLeftButtonDown(
+        object sender,
+        MouseButtonEventArgs e)
+    {
+        _viewModel.IsHelpOpen = false;
+        e.Handled = true;
+    }
+
+    private void HelpPanel_OnMouseLeftButtonDown(
+        object sender,
+        MouseButtonEventArgs e) => e.Handled = true;
 
     private void OnLoaded(object sender, RoutedEventArgs e) =>
         _viewModel.StartUpdateChecks();

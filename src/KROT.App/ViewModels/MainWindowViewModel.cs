@@ -19,6 +19,7 @@ public sealed class MainWindowViewModel : ObservableObject, IDisposable
 {
     public const string ProjectRepositoryUrl = "https://github.com/morda-mir/KROT-zapret";
     public const string ZapretOfficialUrl = "https://github.com/bol-van/zapret";
+    public const string TelegramProxyRepositoryUrl = "https://github.com/Flowseal/tg-ws-proxy";
     private static readonly TimeSpan UpdateCheckInterval = TimeSpan.FromDays(1);
     private static readonly TimeSpan UpdateNotificationInterval = TimeSpan.FromDays(3);
 
@@ -73,6 +74,8 @@ public sealed class MainWindowViewModel : ObservableObject, IDisposable
         SetEnglishCommand = new RelayCommand(() => SetLanguage("en"));
         OpenProjectRepositoryCommand = new RelayCommand(() => OpenUrl(ProjectRepositoryUrl));
         OpenZapretCommand = new RelayCommand(() => OpenUrl(ZapretOfficialUrl));
+        OpenTelegramProxyRepositoryCommand = new RelayCommand(
+            () => OpenUrl(TelegramProxyRepositoryUrl));
         OpenAvailableUpdateCommand = new RelayCommand(
             OpenAvailableUpdate,
             () => AvailableUpdate != null);
@@ -101,6 +104,8 @@ public sealed class MainWindowViewModel : ObservableObject, IDisposable
     public IRelayCommand OpenProjectRepositoryCommand { get; }
 
     public IRelayCommand OpenZapretCommand { get; }
+
+    public IRelayCommand OpenTelegramProxyRepositoryCommand { get; }
 
     public IRelayCommand OpenAvailableUpdateCommand { get; }
 
@@ -135,6 +140,9 @@ public sealed class MainWindowViewModel : ObservableObject, IDisposable
     public string ProjectRepositoryText => _localization.Get("Menu.ProjectRepository");
 
     public string ZapretText => _localization.Get("Menu.Zapret");
+
+    public string TelegramProxyRepositoryText =>
+        _localization.Get("Menu.TelegramProxyRepository");
 
     public string LicensesText => _localization.Get("Menu.Licenses");
 
@@ -618,8 +626,8 @@ public sealed class MainWindowViewModel : ObservableObject, IDisposable
             new(
                 ServiceId.Telegram,
                 string.Empty,
+                "pack://application:,,,/KROT;component/assets/services/telegram-128px.png",
                 string.Empty,
-                "M21,4 L3,11 L10,14 L14,21 Z M10,14 L21,4 M10,14 V19 L14,16",
                 IsSelected(ServiceId.Telegram),
                 OnServiceSelectionChanged,
                 RefreshServiceAsync,
@@ -816,6 +824,7 @@ public sealed class MainWindowViewModel : ObservableObject, IDisposable
         OnPropertyChanged(nameof(AboutText));
         OnPropertyChanged(nameof(ProjectRepositoryText));
         OnPropertyChanged(nameof(ZapretText));
+        OnPropertyChanged(nameof(TelegramProxyRepositoryText));
         OnPropertyChanged(nameof(LicensesText));
         OnPropertyChanged(nameof(VersionText));
         OnPropertyChanged(nameof(CurrentLanguage));

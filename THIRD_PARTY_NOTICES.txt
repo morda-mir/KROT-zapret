@@ -15,6 +15,9 @@ KROT включает консольную x64-сборку proxy-движка �
 Текст лицензии: licenses/TgWsProxy-MIT.txt
 (в репозитории: third_party/licenses/TgWsProxy-MIT.txt)
 
+Официальный значок Telegram в интерфейсе получен с:
+https://telegram.org/img/t_logo.png
+
 Zapret / Zapret 2
 -----------------
 Официальный проект: https://github.com/bol-van/zapret

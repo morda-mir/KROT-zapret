@@ -43,7 +43,6 @@
                   FontWeight="Bold"
                   Command="{Binding ToggleHelpCommand}" />
           <Button Content="—" Width="36" Height="32" Padding="0" Margin="4,0,0,0" Click="Minimize_OnClick" />
-          <Button Content="×" Width="36" Height="32" Padding="0" Margin="4,0,0,0" Click="Close_OnClick" />
         </StackPanel>
       </Grid>
 
@@ -369,19 +368,22 @@
         </Grid>
       </Grid>
 
-      <Border Grid.RowSpan="2"
-              Width="286"
-              HorizontalAlignment="Right"
-              VerticalAlignment="Top"
-              Margin="0,48,10,0"
-              Padding="12"
-              CornerRadius="14"
-              Background="#242B31"
-              BorderBrush="#364049"
-              BorderThickness="1"
-              Panel.ZIndex="10"
-              Visibility="{Binding IsHelpOpen, Converter={StaticResource BoolToVisibility}}">
-        <StackPanel>
+      <Grid Grid.RowSpan="2"
+            Background="Transparent"
+            Panel.ZIndex="10"
+            MouseLeftButtonDown="HelpBackdrop_OnMouseLeftButtonDown"
+            Visibility="{Binding IsHelpOpen, Converter={StaticResource BoolToVisibility}}">
+        <Border Width="286"
+                HorizontalAlignment="Right"
+                VerticalAlignment="Top"
+                Margin="0,48,10,0"
+                Padding="12"
+                CornerRadius="14"
+                Background="#242B31"
+                BorderBrush="#364049"
+                BorderThickness="1"
+                MouseLeftButtonDown="HelpPanel_OnMouseLeftButtonDown">
+          <StackPanel>
           <Grid>
             <Grid.ColumnDefinitions>
               <ColumnDefinition Width="*" />
@@ -456,6 +458,21 @@
                          Margin="9,0,0,0" />
             </StackPanel>
           </Button>
+          <Button Command="{Binding OpenTelegramProxyRepositoryCommand}"
+                  Margin="0,4,0,0"
+                  Padding="10,6"
+                  HorizontalContentAlignment="Left">
+            <StackPanel Orientation="Horizontal">
+              <Image Source="pack://application:,,,/KROT;component/assets/services/github-dark-512px.png"
+                     Width="20"
+                     Height="20"
+                     Stretch="Uniform"
+                     RenderOptions.BitmapScalingMode="HighQuality" />
+              <TextBlock Text="{Binding TelegramProxyRepositoryText}"
+                         VerticalAlignment="Center"
+                         Margin="9,0,0,0" />
+            </StackPanel>
+          </Button>
           <StackPanel Orientation="Horizontal" Margin="2,8,0,0">
             <TextBlock Text="{Binding LicensesText}"
                        Foreground="{StaticResource MutedTextBrush}" />
@@ -463,8 +480,9 @@
                        Foreground="{StaticResource MutedTextBrush}"
                        Margin="8,0,0,0" />
           </StackPanel>
-        </StackPanel>
-      </Border>
+          </StackPanel>
+        </Border>
+      </Grid>
     </Grid>
   </Border>
 </Window>
