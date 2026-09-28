@@ -19,7 +19,8 @@ namespace KROT.App.ViewModels;
 public sealed class MainWindowViewModel : ObservableObject, IDisposable
 {
     public const string ProjectRepositoryUrl = "https://github.com/morda-mir/KROT-zapret";
-    public const string AuthorDiscordUrl = "https://discord.com/users/1110545127501475891";
+    public const string AuthorDiscordUrl = "discord://-/users/1110545127501475891";
+    public const string AuthorDiscordWebUrl = "https://discord.com/users/1110545127501475891";
     public const string ZapretOfficialUrl = "https://github.com/bol-van/zapret";
     public const string TelegramProxyRepositoryUrl = "https://github.com/Flowseal/tg-ws-proxy";
     public const string WinDivertOfficialUrl = "https://github.com/basil00/WinDivert";
@@ -78,7 +79,7 @@ public sealed class MainWindowViewModel : ObservableObject, IDisposable
         SetRussianCommand = new RelayCommand(() => SetLanguage("ru"));
         SetEnglishCommand = new RelayCommand(() => SetLanguage("en"));
         OpenProjectRepositoryCommand = new RelayCommand(() => OpenUrl(ProjectRepositoryUrl));
-        OpenAuthorDiscordCommand = new RelayCommand(() => OpenUrl(AuthorDiscordUrl));
+        OpenAuthorDiscordCommand = new RelayCommand(OpenAuthorDiscord);
         OpenZapretCommand = new RelayCommand(() => OpenUrl(ZapretOfficialUrl));
         OpenTelegramProxyRepositoryCommand = new RelayCommand(
             () => OpenUrl(TelegramProxyRepositoryUrl));
@@ -927,6 +928,22 @@ public sealed class MainWindowViewModel : ObservableObject, IDisposable
         }
 
         Process.Start(new ProcessStartInfo(path) { UseShellExecute = true });
+    }
+
+    private void OpenAuthorDiscord()
+    {
+        try
+        {
+            OpenUrl(AuthorDiscordUrl);
+        }
+        catch (Exception ex)
+        {
+            _log.Error(
+                "discord.profile.open.failed",
+                "Could not open the Discord profile in the desktop client.",
+                ex);
+            OpenUrl(AuthorDiscordWebUrl);
+        }
     }
 
     private bool OpenTelegramProxy()
