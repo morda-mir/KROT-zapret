@@ -435,9 +435,36 @@
                     Padding="9,5"
                     Click="OpenLogs_OnClick" />
           </Grid>
-          <Button Command="{Binding OpenProjectRepositoryCommand}"
+          <Button Command="{Binding OpenAuthorDiscordCommand}"
                   Padding="10,6"
-                   HorizontalContentAlignment="Stretch">
+                  HorizontalContentAlignment="Stretch">
+            <Grid>
+              <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="Auto" />
+              </Grid.ColumnDefinitions>
+              <Image Source="pack://application:,,,/KROT;component/assets/services/discord-512px.png"
+                     Width="20"
+                     Height="20"
+                     Stretch="Uniform"
+                     RenderOptions.BitmapScalingMode="HighQuality" />
+              <TextBlock Grid.Column="1"
+                         Text="{Binding AuthorDiscordText}"
+                         VerticalAlignment="Center"
+                         Margin="9,0,0,0" />
+              <TextBlock Grid.Column="2"
+                         Text="↗"
+                         Margin="12,0,1,0"
+                         Foreground="{StaticResource MutedTextBrush}"
+                         FontSize="12"
+                         VerticalAlignment="Center" />
+            </Grid>
+          </Button>
+          <Button Command="{Binding OpenProjectRepositoryCommand}"
+                  Margin="0,4,0,0"
+                  Padding="10,6"
+                  HorizontalContentAlignment="Stretch">
             <Grid>
               <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="Auto" />

@@ -19,6 +19,7 @@ namespace KROT.App.ViewModels;
 public sealed class MainWindowViewModel : ObservableObject, IDisposable
 {
     public const string ProjectRepositoryUrl = "https://github.com/morda-mir/KROT-zapret";
+    public const string AuthorDiscordUrl = "https://discord.com/users/1110545127501475891";
     public const string ZapretOfficialUrl = "https://github.com/bol-van/zapret";
     public const string TelegramProxyRepositoryUrl = "https://github.com/Flowseal/tg-ws-proxy";
     public const string WinDivertOfficialUrl = "https://github.com/basil00/WinDivert";
@@ -77,6 +78,7 @@ public sealed class MainWindowViewModel : ObservableObject, IDisposable
         SetRussianCommand = new RelayCommand(() => SetLanguage("ru"));
         SetEnglishCommand = new RelayCommand(() => SetLanguage("en"));
         OpenProjectRepositoryCommand = new RelayCommand(() => OpenUrl(ProjectRepositoryUrl));
+        OpenAuthorDiscordCommand = new RelayCommand(() => OpenUrl(AuthorDiscordUrl));
         OpenZapretCommand = new RelayCommand(() => OpenUrl(ZapretOfficialUrl));
         OpenTelegramProxyRepositoryCommand = new RelayCommand(
             () => OpenUrl(TelegramProxyRepositoryUrl));
@@ -110,6 +112,8 @@ public sealed class MainWindowViewModel : ObservableObject, IDisposable
     public IRelayCommand SetEnglishCommand { get; }
 
     public IRelayCommand OpenProjectRepositoryCommand { get; }
+
+    public IRelayCommand OpenAuthorDiscordCommand { get; }
 
     public IRelayCommand OpenZapretCommand { get; }
 
@@ -152,6 +156,8 @@ public sealed class MainWindowViewModel : ObservableObject, IDisposable
     public string AboutDescriptionText => _localization.Get("Menu.AboutDescription");
 
     public string ProjectRepositoryText => _localization.Get("Menu.ProjectRepository");
+
+    public string AuthorDiscordText => _localization.Get("Menu.AuthorDiscord");
 
     public string ZapretText => _localization.Get("Menu.Zapret");
 
@@ -854,6 +860,7 @@ public sealed class MainWindowViewModel : ObservableObject, IDisposable
         OnPropertyChanged(nameof(AboutText));
         OnPropertyChanged(nameof(AboutDescriptionText));
         OnPropertyChanged(nameof(ProjectRepositoryText));
+        OnPropertyChanged(nameof(AuthorDiscordText));
         OnPropertyChanged(nameof(ZapretText));
         OnPropertyChanged(nameof(TelegramProxyRepositoryText));
         OnPropertyChanged(nameof(WinDivertText));
