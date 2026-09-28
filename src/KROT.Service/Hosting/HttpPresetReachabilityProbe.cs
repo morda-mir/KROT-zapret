@@ -64,7 +64,7 @@ public sealed class HttpPresetReachabilityProbe : IPresetReachabilityProbe
         {
             Timeout = System.Threading.Timeout.InfiniteTimeSpan
         };
-        client.DefaultRequestHeaders.UserAgent.ParseAdd("KROT-zapret/1.0");
+        client.DefaultRequestHeaders.UserAgent.ParseAdd("KROT-zapret/2.0");
 
         var results = await Task.WhenAll(
                 endpoints.Select(endpoint =>

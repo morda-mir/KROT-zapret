@@ -8,7 +8,7 @@ public sealed class FieldTestReport
 {
     public int SchemaVersion { get; set; } = 1;
 
-    public string KrotVersion { get; set; } = "1.0";
+    public string KrotVersion { get; set; } = "2.0";
 
     public DateTime StartedUtc { get; set; }
 

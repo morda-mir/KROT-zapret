@@ -1,6 +1,6 @@
 #define MyAppName "KROT zapret"
 #ifndef MyAppVersion
-  #define MyAppVersion "1.1"
+  #define MyAppVersion "2.0"
 #endif
 #ifndef MyOutputDir
   #define MyOutputDir "Output"
